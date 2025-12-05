@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		B5CAEBD92EE2AF1D001ADDEC /* Whatsaswim.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Whatsaswim.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B5CAEBF02EE2AF2D001ADDEC /* WhatsaswimWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WhatsaswimWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B5CAEBD92EE2AF1D001ADDEC /* What's a swim?.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "What's a swim?.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B5CAEBF02EE2AF2D001ADDEC /* What's a swim?Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "What's a swim?Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -54,8 +54,8 @@
 		B5CAEBDA2EE2AF1D001ADDEC /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				B5CAEBD92EE2AF1D001ADDEC /* Whatsaswim.app */,
-				B5CAEBF02EE2AF2D001ADDEC /* WhatsaswimWatch.app */,
+				B5CAEBD92EE2AF1D001ADDEC /* What's a swim?.app */,
+				B5CAEBF02EE2AF2D001ADDEC /* What's a swim?Watch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -63,9 +63,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		B5CAEBD82EE2AF1D001ADDEC /* Whatsaswim */ = {
+		B5CAEBD82EE2AF1D001ADDEC /* What's a swim? */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B5CAEBE42EE2AF1E001ADDEC /* Build configuration list for PBXNativeTarget "Whatsaswim" */;
+			buildConfigurationList = B5CAEBE42EE2AF1E001ADDEC /* Build configuration list for PBXNativeTarget "What's a swim?" */;
 			buildPhases = (
 				B5CAEBD52EE2AF1D001ADDEC /* Sources */,
 				B5CAEBD62EE2AF1D001ADDEC /* Frameworks */,
@@ -78,16 +78,16 @@
 			fileSystemSynchronizedGroups = (
 				B5CAEBDB2EE2AF1D001ADDEC /* Whatsaswim */,
 			);
-			name = Whatsaswim;
+			name = "What's a swim?";
 			packageProductDependencies = (
 			);
 			productName = Whatsaswim;
-			productReference = B5CAEBD92EE2AF1D001ADDEC /* Whatsaswim.app */;
+			productReference = B5CAEBD92EE2AF1D001ADDEC /* What's a swim?.app */;
 			productType = "com.apple.product-type.application";
 		};
-		B5CAEBEF2EE2AF2D001ADDEC /* WhatsaswimWatch */ = {
+		B5CAEBEF2EE2AF2D001ADDEC /* What's a swim?Watch */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B5CAEBF72EE2AF2E001ADDEC /* Build configuration list for PBXNativeTarget "WhatsaswimWatch" */;
+			buildConfigurationList = B5CAEBF72EE2AF2E001ADDEC /* Build configuration list for PBXNativeTarget "What's a swim?Watch" */;
 			buildPhases = (
 				B5CAEBEC2EE2AF2D001ADDEC /* Sources */,
 				B5CAEBED2EE2AF2D001ADDEC /* Frameworks */,
@@ -100,11 +100,11 @@
 			fileSystemSynchronizedGroups = (
 				B5CAEBF12EE2AF2D001ADDEC /* WhatsaswimWatch */,
 			);
-			name = WhatsaswimWatch;
+			name = "What's a swim?Watch";
 			packageProductDependencies = (
 			);
 			productName = WhatsaswimWatch;
-			productReference = B5CAEBF02EE2AF2D001ADDEC /* WhatsaswimWatch.app */;
+			productReference = B5CAEBF02EE2AF2D001ADDEC /* What's a swim?Watch.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -125,7 +125,7 @@
 					};
 				};
 			};
-			buildConfigurationList = B5CAEBD42EE2AF1D001ADDEC /* Build configuration list for PBXProject "Whatsaswim" */;
+			buildConfigurationList = B5CAEBD42EE2AF1D001ADDEC /* Build configuration list for PBXProject "What's a swim?" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -139,8 +139,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				B5CAEBD82EE2AF1D001ADDEC /* Whatsaswim */,
-				B5CAEBEF2EE2AF2D001ADDEC /* WhatsaswimWatch */,
+				B5CAEBD82EE2AF1D001ADDEC /* What's a swim? */,
+				B5CAEBEF2EE2AF2D001ADDEC /* What's a swim?Watch */,
 			);
 		};
 /* End PBXProject section */
@@ -442,7 +442,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		B5CAEBD42EE2AF1D001ADDEC /* Build configuration list for PBXProject "Whatsaswim" */ = {
+		B5CAEBD42EE2AF1D001ADDEC /* Build configuration list for PBXProject "What's a swim?" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B5CAEBE22EE2AF1E001ADDEC /* Debug */,
@@ -451,7 +451,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B5CAEBE42EE2AF1E001ADDEC /* Build configuration list for PBXNativeTarget "Whatsaswim" */ = {
+		B5CAEBE42EE2AF1E001ADDEC /* Build configuration list for PBXNativeTarget "What's a swim?" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B5CAEBE52EE2AF1E001ADDEC /* Debug */,
@@ -460,7 +460,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B5CAEBF72EE2AF2E001ADDEC /* Build configuration list for PBXNativeTarget "WhatsaswimWatch" */ = {
+		B5CAEBF72EE2AF2E001ADDEC /* Build configuration list for PBXNativeTarget "What's a swim?Watch" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B5CAEBF52EE2AF2E001ADDEC /* Debug */,
