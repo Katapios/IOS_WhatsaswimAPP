@@ -162,41 +162,62 @@ struct SwimTrainingView: View {
     private func togglePause() {
         isPaused.toggle()
         if isPaused {
-            sensorManager.stopMonitoring()
+            sensorManager.pauseMonitoring()
         } else {
-            sensorManager.startMonitoring()
+            sensorManager.resumeMonitoring()
         }
     }
     
     private func endTraining() {
         stopTimer()
+        sensorManager.stopMonitoring() // Завершаем сессию тренировки
+        let results = generateResults()
+        // Сохраняем результаты
+        TrainingResultsManager.shared.saveResults(results)
+        NotificationCenter.default.post(name: .trainingResultsSaved, object: nil)
         showResults = true
     }
     
     private func generateResults() -> SwimResults {
-        let trainingData = sensorManager.getTrainingData()
+        // Получаем все стили, которые использовались во время тренировки
+        let stylesSummary = sensorManager.getStylesSummary()
         
-        // Группируем гребки по стилям и сегментам 25м
-        // В реальном приложении это будет более сложная логика
-        let strokesPer25m = estimateStrokesPer25m(
-            totalStrokes: trainingData.strokeCount,
-            distance: trainingData.distance
-        )
-        
-        let styles = [
+        // Преобразуем в формат SwimStyle
+        let styles = stylesSummary.map { summary in
             SwimStyle(
-                name: trainingData.style,
-                totalStrokes: trainingData.strokeCount,
-                segments25m: strokesPer25m
+                name: summary.style,
+                totalStrokes: summary.totalStrokes,
+                segments25m: summary.segments25m
             )
-        ]
+        }
+        
+        // Если стилей не было определено, используем общие данные
+        let finalStyles: [SwimStyle]
+        if styles.isEmpty {
+            let trainingData = sensorManager.getTrainingData()
+            let strokesPer25m = estimateStrokesPer25m(
+                totalStrokes: trainingData.strokeCount,
+                distance: trainingData.distance
+            )
+            finalStyles = [
+                SwimStyle(
+                    name: trainingData.style.isEmpty ? "Не определен" : trainingData.style,
+                    totalStrokes: trainingData.strokeCount,
+                    segments25m: strokesPer25m
+                )
+            ]
+        } else {
+            finalStyles = styles
+        }
+        
+        let trainingData = sensorManager.getTrainingData()
         
         return SwimResults(
             duration: elapsedTime,
             distance: trainingData.distance,
             waterTemperature: sensorManager.waterTemperature,
             averageDepth: sensorManager.depth,
-            styles: styles
+            styles: finalStyles
         )
     }
     

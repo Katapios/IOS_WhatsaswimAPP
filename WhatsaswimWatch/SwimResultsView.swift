@@ -209,7 +209,7 @@ struct InfoRow: View {
             averageDepth: 1.5,
             styles: [
                 SwimStyle(name: "Баттерфляй", totalStrokes: 120, segments25m: [28, 30, 29, 33]),
-                SwimStyle(name: "Вольный стиль", totalStrokes: 200, segments25m: [18, 19, 18, 20, 19]),
+                SwimStyle(name: "Кроль", totalStrokes: 200, segments25m: [18, 19, 18, 20, 19]),
                 SwimStyle(name: "На спине", totalStrokes: 150, segments25m: [22, 23, 22]),
                 SwimStyle(name: "Брасс", totalStrokes: 100, segments25m: [15, 16, 15])
             ]

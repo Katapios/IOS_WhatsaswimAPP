@@ -387,6 +387,7 @@
 				DEVELOPMENT_TEAM = H2GFBK2X44;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "What-s-a-swim-Watch-Info.plist";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Приложению необходим доступ к данным о здоровье для отслеживания тренировок по плаванию.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Приложению необходим доступ к данным о здоровье для сохранения результатов тренировок.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -427,6 +428,7 @@
 				DEVELOPMENT_TEAM = H2GFBK2X44;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "What-s-a-swim-Watch-Info.plist";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Приложению необходим доступ к данным о здоровье для отслеживания тренировок по плаванию.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Приложению необходим доступ к данным о здоровье для сохранения результатов тренировок.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
