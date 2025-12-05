@@ -14,6 +14,7 @@ struct CalendarView: View {
     @State private var showDetailView = false
     @State private var daysInMonth: [Date] = []
     @State private var isLoading = true
+    @State private var refreshTimer: Timer?
     
     private let calendar = Calendar.current
     private let dateFormatter: DateFormatter = {
@@ -145,20 +146,17 @@ struct CalendarView: View {
             Spacer()
         }
         .onAppear {
-            // Обновляем данные при появлении календаря
-            dataManager.refresh()
             loadCalendarData()
-        }
-        .task {
-            // Дополнительная загрузка при первом появлении
             dataManager.refresh()
+            // Периодически проверяем наличие новых данных (так как NotificationCenter не работает между устройствами)
+            startPeriodicRefresh()
+        }
+        .onDisappear {
+            stopPeriodicRefresh()
         }
         .onReceive(NotificationCenter.default.publisher(for: .trainingResultsSaved)) { _ in
-            // Обновляем данные при получении уведомления о сохранении результатов
-            print("📬 Получено уведомление о сохранении результатов тренировки")
             dataManager.refresh()
-            // Небольшая задержка для синхронизации App Group
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 self.updateDaysInMonth()
             }
         }
@@ -224,15 +222,10 @@ struct CalendarView: View {
     private func loadCalendarData() {
         isLoading = true
         DispatchQueue.global(qos: .userInitiated).async { [weak dataManager] in
-            // Принудительно обновляем данные
             dataManager?.refresh()
-            // Небольшая задержка для синхронизации App Group
-            Thread.sleep(forTimeInterval: 0.2)
             DispatchQueue.main.async {
                 self.updateDaysInMonth()
                 self.isLoading = false
-                // Дополнительная проверка после загрузки
-                print("📅 Календарь загружен. Дат с тренировками: \(dataManager?.trainingDates.count ?? 0)")
             }
         }
     }
@@ -242,6 +235,21 @@ struct CalendarView: View {
             currentDate = newDate
             updateDaysInMonth()
         }
+    }
+    
+    private func startPeriodicRefresh() {
+        // Останавливаем предыдущий таймер, если есть
+        refreshTimer?.invalidate()
+        
+        // Проверяем наличие новых данных каждые 2 секунды
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak dataManager] _ in
+            dataManager?.refresh()
+        }
+    }
+    
+    private func stopPeriodicRefresh() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
 }
 

@@ -357,7 +357,10 @@ class SensorManager: ObservableObject {
         // Создаем конфигурацию тренировки для плавания
         let configuration = HKWorkoutConfiguration()
         configuration.activityType = .swimming
-        configuration.locationType = .indoor
+        // Для плавания используем swimmingLocationType вместо locationType
+        configuration.swimmingLocationType = .pool
+        // Указываем длину бассейна (25 метров)
+        configuration.lapLength = HKQuantity(unit: .meter(), doubleValue: 25)
         
         do {
             // Создаем сессию тренировки
@@ -459,11 +462,6 @@ class SensorManager: ObservableObject {
         }
         
         healthStore.execute(query)
-        healthStore.enableBackgroundDelivery(for: heartRateType, frequency: .immediate) { success, error in
-            if let error = error {
-                print("Ошибка фоновой доставки пульса: \(error.localizedDescription)")
-            }
-        }
     }
     
     private func fetchLatestHeartRate() {

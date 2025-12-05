@@ -11,6 +11,7 @@ struct StatisticsView: View {
     @StateObject private var dataManager = TrainingDataManager.shared
     @State private var allResults: [SavedTrainingResult] = []
     @State private var isLoading = true
+    @State private var refreshTimer: Timer?
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -117,13 +118,6 @@ struct StatisticsView: View {
             .navigationTitle("Статистика")
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
-                // Принудительно обновляем данные при появлении
-                dataManager.refresh()
-                loadStatistics()
-            }
-            .task {
-                // Дополнительная загрузка при первом появлении
-                dataManager.refresh()
                 loadStatistics()
             }
             .refreshable {
@@ -134,11 +128,9 @@ struct StatisticsView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .trainingResultsSaved)) { _ in
-                // Обновляем статистику при получении уведомления о сохранении результатов
-                print("📬 Получено уведомление о сохранении результатов тренировки в StatisticsView")
                 dataManager.refresh()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    loadStatistics()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.loadStatistics()
                 }
             }
         }
@@ -147,17 +139,25 @@ struct StatisticsView: View {
     private func loadStatistics() {
         isLoading = true
         DispatchQueue.global(qos: .userInitiated).async {
-            // Принудительно синхронизируем перед загрузкой
-            self.dataManager.refresh()
-            // Небольшая задержка для синхронизации App Group
-            Thread.sleep(forTimeInterval: 0.2)
             let results = dataManager.getAllResults()
             DispatchQueue.main.async {
                 self.allResults = results
                 self.isLoading = false
-                print("📊 Статистика загружена. Всего тренировок: \(results.count)")
             }
         }
+    }
+    
+    private func startPeriodicRefresh() {
+        refreshTimer?.invalidate()
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak dataManager] _ in
+            dataManager?.refresh()
+            loadStatistics()
+        }
+    }
+    
+    private func stopPeriodicRefresh() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
     
     private func formatTotalTime(_ time: TimeInterval) -> String {

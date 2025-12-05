@@ -184,7 +184,6 @@ struct SwimTrainingView: View {
         
         // Сохраняем результаты ПЕРЕД сбросом
         TrainingResultsManager.shared.saveResults(results)
-        print("✅ Результаты тренировки сохранены: \(results.styles.count) стилей, \(Int(results.distance))м, \(Int(results.duration))с")
         
         // Отправляем уведомление о сохранении результатов
         NotificationCenter.default.post(name: .trainingResultsSaved, object: nil)

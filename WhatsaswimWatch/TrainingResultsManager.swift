@@ -20,16 +20,15 @@ class TrainingResultsManager {
     private init() {
         // Используем App Group для синхронизации с iPhone
         // Проверяем доступность App Group
-        if let sharedDefaults = UserDefaults(suiteName: AppConfig.appGroupIdentifier) {
+        let suiteName = AppConfig.appGroupIdentifier
+        print("🔧 Инициализация TrainingResultsManager с App Group: \(suiteName)")
+        
+        if let sharedDefaults = UserDefaults(suiteName: suiteName) {
             self.userDefaults = sharedDefaults
-            print("✅ App Group '\(AppConfig.appGroupIdentifier)' успешно инициализирован")
+            print("✅ App Group доступен: \(suiteName)")
         } else {
             // Fallback на стандартный UserDefaults, если App Group недоступен
-            print("⚠️ App Group '\(AppConfig.appGroupIdentifier)' недоступен. Проверьте:")
-            print("   1. App Group добавлен в Capabilities для обоих таргетов (iPhone и Watch)")
-            print("   2. Идентификатор App Group совпадает: '\(AppConfig.appGroupIdentifier)'")
-            print("   3. App Group добавлен в entitlements файлы")
-            print("   Используется стандартный UserDefaults (синхронизация не будет работать)")
+            print("❌ App Group недоступен, используем стандартный UserDefaults")
             self.userDefaults = UserDefaults.standard
         }
     }
@@ -40,6 +39,13 @@ class TrainingResultsManager {
         
         let now = Date()
         let todayStart = Calendar.current.startOfDay(for: now)
+        
+        print("💾 Сохранение результатов тренировки...")
+        print("   - Текущее количество записей: \(allResults.count)")
+        print("   - Дата тренировки: \(now)")
+        print("   - Стилей: \(results.styles.count)")
+        print("   - Дистанция: \(Int(results.distance))м")
+        print("   - Длительность: \(Int(results.duration))с")
         
         // Проверяем, есть ли уже результаты за сегодня
         // Если есть, заменяем их (на случай, если тренировка была завершена несколько раз)
@@ -55,22 +61,32 @@ class TrainingResultsManager {
                 results: results
             )
             allResults.append(resultEntry)
+            print("➕ Добавлена новая запись тренировки")
         }
         
         // Сортируем по дате (новые сначала)
         allResults.sort { $0.date > $1.date }
         
-        // Сохраняем
+        // Сохраняем в App Group
         if let encoded = try? JSONEncoder().encode(allResults) {
             userDefaults.set(encoded, forKey: resultsKey)
-            userDefaults.synchronize() // Принудительно синхронизируем для App Group
-            print("✅ Результаты тренировки сохранены в App Group (всего записей: \(allResults.count))")
-            print("   - Дата: \(now)")
-            print("   - Стилей: \(results.styles.count)")
-            print("   - Дистанция: \(Int(results.distance))м")
-            print("   - Длительность: \(Int(results.duration))с")
+            print("✅ Результаты сохранены в App Group (\(allResults.count) записей, размер: \(encoded.count) байт)")
+            
+            // Проверяем, что данные действительно сохранились
+            if let savedData = userDefaults.data(forKey: resultsKey) {
+                print("✅ Проверка: данные в App Group (\(savedData.count) байт)")
+            } else {
+                print("❌ ОШИБКА: данные не найдены в App Group после сохранения!")
+            }
         } else {
-            print("❌ Ошибка кодирования результатов тренировки")
+            print("❌ Ошибка кодирования данных для сохранения в App Group")
+        }
+        
+        // Отправляем результат на iPhone через WatchConnectivity
+        // Используем задержку, чтобы дать время WCSession активироваться
+        let savedResult = SavedTrainingResult(date: now, results: results)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            WatchConnectivityManager.shared.sendTrainingResults(savedResult)
         }
     }
     

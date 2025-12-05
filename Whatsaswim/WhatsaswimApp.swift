@@ -9,6 +9,11 @@ import SwiftUI
 
 @main
 struct WhatsaswimApp: App {
+    init() {
+        // Инициализируем WatchConnectivityManager при запуске приложения
+        _ = WatchConnectivityManager.shared
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView()

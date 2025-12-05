@@ -39,24 +39,11 @@ class TrainingDataManager: ObservableObject {
     
     private init() {
         // Используем App Group для синхронизации с часами
-        // Проверяем доступность App Group
-        if let sharedDefaults = UserDefaults(suiteName: AppConfig.appGroupIdentifier) {
+        // Инициализируем UserDefaults для App Group
+        let suiteName = AppConfig.appGroupIdentifier
+        if let sharedDefaults = UserDefaults(suiteName: suiteName) {
             self.userDefaults = sharedDefaults
-            print("✅ App Group '\(AppConfig.appGroupIdentifier)' успешно инициализирован (iPhone)")
-            
-            // Проверяем, есть ли данные в App Group
-            if let data = sharedDefaults.data(forKey: resultsKey) {
-                print("📦 Найдены данные в App Group (размер: \(data.count) байт)")
-            } else {
-                print("⚠️ Данные в App Group не найдены. Ключ: \(resultsKey)")
-            }
         } else {
-            // Fallback на стандартный UserDefaults, если App Group недоступен
-            print("❌ App Group '\(AppConfig.appGroupIdentifier)' недоступен. Проверьте:")
-            print("   1. App Group добавлен в Capabilities для обоих таргетов (iPhone и Watch)")
-            print("   2. Идентификатор App Group совпадает: '\(AppConfig.appGroupIdentifier)'")
-            print("   3. App Group добавлен в entitlements файлы")
-            print("   Используется стандартный UserDefaults (синхронизация не будет работать)")
             self.userDefaults = UserDefaults.standard
         }
         loadTrainingDates()
@@ -68,14 +55,6 @@ class TrainingDataManager: ObservableObject {
         let dates = Set(allResults.map { result in
             Calendar.current.startOfDay(for: result.date)
         })
-        
-        print("📅 Загружено дат с тренировками: \(dates.count)")
-        if !dates.isEmpty {
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "dd.MM.yyyy"
-            let datesString = dates.map { dateFormatter.string(from: $0) }.joined(separator: ", ")
-            print("   Даты: \(datesString)")
-        }
         
         // Обновляем @Published свойство на главном потоке
         DispatchQueue.main.async { [weak self] in
@@ -118,29 +97,24 @@ class TrainingDataManager: ObservableObject {
     
     // MARK: - Load All Results
     private func loadAllResults() -> [SavedTrainingResult] {
-        // Принудительно синхронизируем перед чтением
-        userDefaults.synchronize()
-        
+        // Читаем данные из App Group через UserDefaults
         guard let data = userDefaults.data(forKey: resultsKey) else {
-            print("⚠️ Данные не найдены в App Group для ключа: \(resultsKey)")
+            print("📭 Нет данных в App Group для ключа: \(resultsKey)")
             return []
         }
         
         guard let results = try? JSONDecoder().decode([SavedTrainingResult].self, from: data) else {
             print("❌ Ошибка декодирования данных из App Group")
-            // Попробуем вывести размер данных для отладки
-            print("   Размер данных: \(data.count) байт")
             return []
         }
         
-        print("✅ Загружено результатов тренировок: \(results.count)")
+        print("✅ Загружено \(results.count) результатов из App Group")
         return results
     }
     
     // MARK: - Refresh Data
     func refresh() {
-        // Принудительно синхронизируем UserDefaults для App Group
-        userDefaults.synchronize()
+        // Принудительно перезагружаем данные из App Group
         loadTrainingDates()
     }
     

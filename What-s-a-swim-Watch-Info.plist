@@ -5,6 +5,10 @@
 	<key>UIBackgroundModes</key>
 	<array/>
 	<key>WKBackgroundModes</key>
-	<array/>
+	<array>
+		<string>workout-processing</string>
+	</array>
+	<key>WKCompanionAppBundleIdentifier</key>
+	<string>com.katapios.Whatsaswim</string>
 </dict>
 </plist>
