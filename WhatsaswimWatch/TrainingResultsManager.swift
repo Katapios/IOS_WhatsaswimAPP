@@ -14,38 +14,74 @@ extension Notification.Name {
 class TrainingResultsManager {
     static let shared = TrainingResultsManager()
     
-    private let userDefaults = UserDefaults.standard
-    private let resultsKey = "savedTrainingResults"
+    private let userDefaults: UserDefaults
+    private let resultsKey = AppConfig.trainingResultsKey
     
-    private init() {}
+    private init() {
+        // Используем App Group для синхронизации с iPhone
+        // Проверяем доступность App Group
+        if let sharedDefaults = UserDefaults(suiteName: AppConfig.appGroupIdentifier) {
+            self.userDefaults = sharedDefaults
+            print("✅ App Group '\(AppConfig.appGroupIdentifier)' успешно инициализирован")
+        } else {
+            // Fallback на стандартный UserDefaults, если App Group недоступен
+            print("⚠️ App Group '\(AppConfig.appGroupIdentifier)' недоступен. Проверьте:")
+            print("   1. App Group добавлен в Capabilities для обоих таргетов (iPhone и Watch)")
+            print("   2. Идентификатор App Group совпадает: '\(AppConfig.appGroupIdentifier)'")
+            print("   3. App Group добавлен в entitlements файлы")
+            print("   Используется стандартный UserDefaults (синхронизация не будет работать)")
+            self.userDefaults = UserDefaults.standard
+        }
+    }
     
     // MARK: - Save Results
     func saveResults(_ results: SwimResults) {
         var allResults = loadAllResults()
         
-        // Создаем запись с текущей датой
-        let resultEntry = SavedTrainingResult(
-            date: Date(),
-            results: results
-        )
+        let now = Date()
+        let todayStart = Calendar.current.startOfDay(for: now)
         
-        allResults.append(resultEntry)
+        // Проверяем, есть ли уже результаты за сегодня
+        // Если есть, заменяем их (на случай, если тренировка была завершена несколько раз)
+        if let existingIndex = allResults.firstIndex(where: { result in
+            Calendar.current.startOfDay(for: result.date) == todayStart
+        }) {
+            print("⚠️ Найдены существующие результаты за сегодня, заменяем их")
+            allResults[existingIndex] = SavedTrainingResult(date: now, results: results)
+        } else {
+            // Создаем новую запись с текущей датой
+            let resultEntry = SavedTrainingResult(
+                date: now,
+                results: results
+            )
+            allResults.append(resultEntry)
+        }
+        
+        // Сортируем по дате (новые сначала)
+        allResults.sort { $0.date > $1.date }
         
         // Сохраняем
         if let encoded = try? JSONEncoder().encode(allResults) {
             userDefaults.set(encoded, forKey: resultsKey)
-            // Отправляем уведомление о сохранении результатов
-            NotificationCenter.default.post(name: .trainingResultsSaved, object: nil)
+            userDefaults.synchronize() // Принудительно синхронизируем для App Group
+            print("✅ Результаты тренировки сохранены в App Group (всего записей: \(allResults.count))")
+            print("   - Дата: \(now)")
+            print("   - Стилей: \(results.styles.count)")
+            print("   - Дистанция: \(Int(results.distance))м")
+            print("   - Длительность: \(Int(results.duration))с")
+        } else {
+            print("❌ Ошибка кодирования результатов тренировки")
         }
     }
     
     // MARK: - Load Results
     func loadTodayResults() -> SwimResults? {
         let allResults = loadAllResults()
+        let todayStart = Calendar.current.startOfDay(for: Date())
         
-        // Ищем результаты за сегодня
+        // Ищем результаты за сегодня (используем startOfDay для точного сравнения)
         if let todayResult = allResults.first(where: { result in
-            Calendar.current.isDate(result.date, inSameDayAs: Date())
+            Calendar.current.startOfDay(for: result.date) == todayStart
         }) {
             return todayResult.results
         }

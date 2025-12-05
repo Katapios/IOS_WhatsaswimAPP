@@ -8,14 +8,28 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var selectedTab = 0
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView(selection: $selectedTab) {
+            NavigationStack {
+                CalendarView()
+                    .navigationTitle("Тренировки")
+                    .navigationBarTitleDisplayMode(.large)
+            }
+            .tabItem {
+                Label("Календарь", systemImage: "calendar")
+            }
+            .tag(0)
+            
+            NavigationStack {
+                StatisticsView()
+            }
+            .tabItem {
+                Label("Статистика", systemImage: "chart.bar.fill")
+            }
+            .tag(1)
         }
-        .padding()
     }
 }
 

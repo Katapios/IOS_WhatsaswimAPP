@@ -77,7 +77,7 @@ class SensorManager: ObservableObject {
         var endTime: Date?
         var strokeCount: Int = 0
         var distance: Double = 0.0
-        var strokesPer25m: [Int] = []
+        var strokesPer25m: [Int] = [] // Сегменты по 25м - записываются после каждой остановки
     }
     
     // История всех стилей во время тренировки
@@ -87,23 +87,57 @@ class SensorManager: ObservableObject {
     private let styleChangeThreshold: TimeInterval = 3.0 // Минимум 3 секунды для смены стиля
     private let styleConfidenceWindow: TimeInterval = 5.0 // Окно для определения стиля
     
+    // Отслеживание остановок движения для записи сегментов 25м
+    private var lastStrokeTime: Date?
+    private let stopDetectionThreshold: TimeInterval = 5.0 // Остановка = нет гребков более 5 секунд
+    private var currentSegmentStrokes: Int = 0 // Гребки в текущем сегменте 25м
+    private var currentSegmentStartTime: Date? // Время начала текущего сегмента
+    private var isStopped: Bool = false // Флаг остановки движения
+    
     // Workout Session для предотвращения блокировки экрана
     private var workoutSession: HKWorkoutSession?
     private var workoutBuilder: HKLiveWorkoutBuilder?
     private let workoutDelegate = WorkoutSessionDelegate()
     private var isHealthKitAuthorized = false
+    private var authorizationRequested = false
+    private var stopDetectionTimer: Timer? // Таймер для проверки остановок движения
     
     private init() {
         workoutDelegate.sensorManager = self
-        requestHealthKitAuthorization()
+        // Не запрашиваем авторизацию сразу, чтобы избежать двойного запроса
+        // Авторизация будет запрошена при первом запуске мониторинга
     }
     
     // MARK: - HealthKit Authorization
-    private func requestHealthKitAuthorization() {
+    private func requestHealthKitAuthorization(completion: (() -> Void)? = nil) {
         guard HKHealthStore.isHealthDataAvailable() else {
-            print("HealthKit недоступен")
+            print("❌ HealthKit недоступен на этом устройстве")
+            completion?()
             return
         }
+        
+        // Сначала проверяем текущий статус авторизации
+        guard let workoutType = HKObjectType.workoutType() as? HKObjectType else {
+            print("❌ Не удалось получить тип тренировки для HealthKit")
+            completion?()
+            return
+        }
+        
+        let currentStatus = healthStore.authorizationStatus(for: workoutType)
+        print("📊 Текущий статус авторизации HealthKit: \(currentStatus.rawValue)")
+        
+        // Если статус уже авторизован, не запрашиваем снова
+        if currentStatus == .sharingAuthorized {
+            print("✅ HealthKit уже авторизован")
+            isHealthKitAuthorized = true
+            completion?()
+            return
+        }
+        
+        // Если статус не определен (.notDetermined) или отклонен, запрашиваем авторизацию
+        // Это гарантирует, что диалог авторизации будет показан пользователю
+        print("🔐 Запрашиваем авторизацию HealthKit (статус: \(currentStatus.rawValue))...")
+        authorizationRequested = true
         
         var typesToRead: Set<HKObjectType> = [
             HKObjectType.quantityType(forIdentifier: .heartRate)!,
@@ -124,29 +158,97 @@ class SensorManager: ObservableObject {
             HKObjectType.quantityType(forIdentifier: .swimmingStrokeCount)!
         ]
         
+        // ВАЖНО: requestAuthorization всегда показывает диалог, если статус .notDetermined
+        // Даже если мы вызывали его ранее, если пользователь не ответил, диалог покажется снова
         healthStore.requestAuthorization(toShare: typesToWrite, read: typesToRead) { [weak self] success, error in
-            if let error = error {
-                print("Ошибка авторизации HealthKit: \(error.localizedDescription)")
-                self?.isHealthKitAuthorized = false
-            } else if success {
-                print("HealthKit авторизация успешна")
-                self?.isHealthKitAuthorized = true
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ Ошибка авторизации HealthKit: \(error.localizedDescription)")
+                    self?.isHealthKitAuthorized = false
+                    completion?()
+                } else {
+                    print("✅ Запрос авторизации HealthKit выполнен (success: \(success))")
+                    // Проверяем реальный статус авторизации после запроса
+                    self?.checkHealthKitAuthorizationStatus(completion: completion)
+                }
             }
         }
     }
     
+    private func checkHealthKitAuthorizationStatus(completion: (() -> Void)? = nil) {
+        guard let workoutType = HKObjectType.workoutType() as? HKObjectType else {
+            isHealthKitAuthorized = false
+            print("❌ Не удалось получить тип тренировки для HealthKit")
+            completion?()
+            return
+        }
+        
+        let status = healthStore.authorizationStatus(for: workoutType)
+        
+        // Определяем статус авторизации
+        let statusDescription: String
+        switch status {
+        case .notDetermined:
+            statusDescription = "notDetermined (не определен)"
+        case .sharingDenied:
+            statusDescription = "sharingDenied (отклонено)"
+        case .sharingAuthorized:
+            statusDescription = "sharingAuthorized (авторизовано)"
+        @unknown default:
+            statusDescription = "unknown (\(status.rawValue))"
+        }
+        
+        // Для workoutType статус может быть .notDetermined, но это не значит, что мы не можем запустить сессию
+        // Однако для записи данных нужен статус .sharingAuthorized
+        isHealthKitAuthorized = (status == .sharingAuthorized)
+        
+        print("📊 Статус авторизации HealthKit для тренировок: \(statusDescription), авторизован: \(isHealthKitAuthorized)")
+        
+        // Если статус не определен, это нормально - пользователь еще не ответил на запрос
+        if status == .notDetermined {
+            print("ℹ️ Статус не определен - авторизация будет запрошена при следующем вызове")
+        }
+        
+        completion?()
+    }
+    
     // MARK: - Start Monitoring
     func startMonitoring() {
+        guard !isMonitoring else {
+            print("⚠️ Мониторинг уже запущен")
+            return
+        }
+        
+        print("🚀 Запуск мониторинга датчиков...")
+        
+        // Всегда проверяем и запрашиваем авторизацию перед запуском
+        // Это гарантирует, что запрос будет показан пользователю
+        requestHealthKitAuthorization { [weak self] in
+            print("✅ Авторизация HealthKit обработана, запускаем мониторинг")
+            self?.startMonitoringInternal()
+        }
+    }
+    
+    private func startMonitoringInternal() {
         guard !isMonitoring else { return }
         
         isMonitoring = true
         startTime = Date()
-        strokeCount = 0
-        distance = 0.0
         strokeHistory.removeAll()
         styleSegments.removeAll()
         currentStyleSegment = nil
         styleDetectionHistory.removeAll()
+        lastStrokeTime = nil
+        currentSegmentStrokes = 0
+        currentSegmentStartTime = Date()
+        isStopped = false
+        
+        // Обновляем @Published свойства на главном потоке
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.strokeCount = 0
+            self.distance = 0.0
+        }
         
         // Запускаем сессию тренировки для предотвращения блокировки экрана
         // Важно: запускаем сессию ПЕРЕД другими мониторингами
@@ -156,6 +258,9 @@ class SensorManager: ObservableObject {
         startMotionMonitoring()
         startDepthMonitoring()
         startTemperatureMonitoring()
+        
+        // Запускаем таймер для проверки остановок движения
+        startStopDetectionTimer()
     }
     
     // MARK: - Stop Monitoring
@@ -163,6 +268,15 @@ class SensorManager: ObservableObject {
         isMonitoring = false
         motionManager.stopAccelerometerUpdates()
         motionManager.stopDeviceMotionUpdates()
+        
+        // Останавливаем таймер проверки остановок на главном потоке
+        DispatchQueue.main.async { [weak self] in
+            self?.stopDetectionTimer?.invalidate()
+            self?.stopDetectionTimer = nil
+            
+            // Записываем последний сегмент перед остановкой мониторинга
+            self?.recordCurrentSegment25m()
+        }
         
         // Завершаем сессию тренировки
         endWorkoutSession()
@@ -174,13 +288,21 @@ class SensorManager: ObservableObject {
         motionManager.stopAccelerometerUpdates()
         motionManager.stopDeviceMotionUpdates()
         
+        // Останавливаем таймер проверки остановок на главном потоке
+        DispatchQueue.main.async { [weak self] in
+            self?.stopDetectionTimer?.invalidate()
+            self?.stopDetectionTimer = nil
+        }
+        
         // Приостанавливаем сессию тренировки (но не завершаем, чтобы экран не блокировался)
+        // ВАЖНО: При паузе сессия остается активной, экран не должен гаснуть
         pauseWorkoutSession()
     }
     
     func resumeMonitoring() {
         guard workoutSession != nil else {
             // Если сессии нет, запускаем заново
+            print("⚠️ Сессия тренировки отсутствует при возобновлении, запускаем заново")
             startMonitoring()
             return
         }
@@ -194,13 +316,41 @@ class SensorManager: ObservableObject {
         startMotionMonitoring()
         startDepthMonitoring()
         startTemperatureMonitoring()
+        
+        // Возобновляем таймер проверки остановок
+        startStopDetectionTimer()
     }
     
     // MARK: - Workout Session Management
     private func startWorkoutSession() {
         // Проверяем доступность HealthKit
         guard HKHealthStore.isHealthDataAvailable() else {
-            print("HealthKit недоступен, экран может блокироваться")
+            print("❌ HealthKit недоступен, экран может блокироваться")
+            return
+        }
+        
+        print("🏃 Запуск сессии тренировки HealthKit...")
+        
+        // Всегда проверяем авторизацию перед запуском сессии
+        // Это гарантирует, что запрос будет показан, если еще не был показан
+        if !authorizationRequested || !isHealthKitAuthorized {
+            print("⚠️ HealthKit авторизация не подтверждена, запрашиваем авторизацию перед запуском сессии")
+            requestHealthKitAuthorization { [weak self] in
+                // Запускаем сессию даже если авторизация не подтверждена
+                // Сессия тренировки может работать и без полной авторизации (для предотвращения блокировки экрана)
+                print("🔄 Продолжаем запуск сессии после запроса авторизации")
+                self?.startWorkoutSessionInternal()
+            }
+            return
+        }
+        
+        startWorkoutSessionInternal()
+    }
+    
+    private func startWorkoutSessionInternal() {
+        // Если сессия уже существует, не создаем новую
+        guard workoutSession == nil else {
+            print("⚠️ Сессия тренировки уже существует")
             return
         }
         
@@ -224,36 +374,44 @@ class SensorManager: ObservableObject {
             
             // ВАЖНО: Сначала запускаем сессию, это предотвратит блокировку экрана
             workoutSession?.startActivity(with: startDate)
-            print("Сессия тренировки запущена, экран не должен блокироваться")
+            print("✅ Сессия тренировки запущена, экран не должен блокироваться")
             
             // Затем начинаем сбор данных асинхронно
             workoutBuilder?.beginCollection(withStart: startDate) { [weak self] success, error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        print("Ошибка начала сбора данных тренировки: \(error.localizedDescription)")
+                        print("❌ Ошибка начала сбора данных тренировки: \(error.localizedDescription)")
                     } else if success {
-                        print("Сбор данных тренировки начат успешно")
+                        print("✅ Сбор данных тренировки начат успешно")
                     } else {
-                        print("Не удалось начать сбор данных тренировки")
+                        print("⚠️ Не удалось начать сбор данных тренировки")
                     }
                 }
             }
         } catch {
-            print("Ошибка создания сессии тренировки: \(error.localizedDescription)")
+            print("❌ Ошибка создания сессии тренировки: \(error.localizedDescription)")
             print("Экран может блокироваться без активной сессии тренировки")
         }
     }
     
     private func pauseWorkoutSession() {
-        guard let workoutSession = workoutSession else { return }
-        // Приостанавливаем сессию (экран продолжит работать)
+        guard let workoutSession = workoutSession else {
+            print("⚠️ Попытка приостановить несуществующую сессию тренировки")
+            return
+        }
+        // Приостанавливаем сессию (экран продолжит работать, так как сессия все еще активна)
         workoutSession.pause()
+        print("⏸️ Сессия тренировки приостановлена, экран не должен гаснуть")
     }
     
     private func resumeWorkoutSession() {
-        guard let workoutSession = workoutSession else { return }
+        guard let workoutSession = workoutSession else {
+            print("⚠️ Попытка возобновить несуществующую сессию тренировки")
+            return
+        }
         // Возобновляем сессию
         workoutSession.resume()
+        print("▶️ Сессия тренировки возобновлена")
     }
     
     private func endWorkoutSession() {
@@ -390,12 +548,27 @@ class SensorManager: ObservableObject {
         }
         
         strokeHistory.append(now)
-        strokeCount += 1
+        lastStrokeTime = now
         
-        // Добавляем гребок к текущему сегменту стиля
-        if var segment = currentStyleSegment {
-            segment.strokeCount += 1
-            currentStyleSegment = segment
+        // Если было остановлено движение, возобновляем
+        if isStopped {
+            isStopped = false
+            print("▶️ Движение возобновлено, начинаем новый сегмент")
+            // После остановки начинаем новый сегмент
+            startNewSegmentAfterStop()
+        }
+        
+        // Обновляем @Published свойства на главном потоке
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.strokeCount += 1
+            self.currentSegmentStrokes += 1
+            
+            // Добавляем гребок к текущему сегменту стиля
+            if var segment = self.currentStyleSegment {
+                segment.strokeCount += 1
+                self.currentStyleSegment = segment
+            }
         }
         
         // Ограничиваем историю последними 10 секундами
@@ -411,84 +584,180 @@ class SensorManager: ObservableObject {
         
         // Вычисляем частоту гребков за последние 5 секунд
         let recentStrokes = strokeHistory.filter { now.timeIntervalSince($0) <= 5.0 }
-        let strokeFrequency = Double(recentStrokes.count) / 5.0 // гребков в секунду
+        let strokeFrequency = recentStrokes.count > 0 ? Double(recentStrokes.count) / 5.0 : 0.0 // гребков в секунду
         
         // Определяем предполагаемый стиль
+        // ВАЖНО: Проверяем в порядке от наиболее специфичных к менее специфичным
         var detectedStyle: String = "Не определен"
         
-        // Баттерфляй - сильные вертикальные движения, высокая частота
-        if verticalMovement > 1.8 && strokeFrequency > 0.6 {
+        // Баттерфляй - очень сильные вертикальные движения, высокая частота
+        if verticalMovement > 2.0 && strokeFrequency > 0.7 && horizontalMovement < 1.5 {
             detectedStyle = "Баттерфляй"
         }
-        // Брасс - симметричные движения, низкая частота
-        else if abs(horizontalMovement - verticalMovement) < 0.4 && strokeFrequency < 0.5 && magnitude > 0.8 {
-            detectedStyle = "Брасс"
-        }
-        // Кроль - быстрые горизонтальные движения, высокая частота
-        else if horizontalMovement > 1.3 && strokeFrequency > 0.7 {
+        // Кроль - быстрые горизонтальные движения, высокая частота, низкая вертикальная составляющая
+        else if horizontalMovement > 1.5 && strokeFrequency > 0.8 && verticalMovement < 1.3 {
             detectedStyle = "Кроль"
         }
-        // На спине - умеренные движения, средняя частота
-        else if verticalMovement < 1.2 && horizontalMovement > 0.9 && strokeFrequency > 0.4 && strokeFrequency < 0.7 {
+        // На спине - умеренные движения, средняя частота, горизонтальные движения преобладают
+        else if horizontalMovement > 1.0 && horizontalMovement < 1.5 && strokeFrequency > 0.5 && strokeFrequency < 0.8 && verticalMovement < 1.0 {
             detectedStyle = "На спине"
         }
+        // Брасс - симметричные движения (вертикальные и горизонтальные близки), низкая частота, средняя величина
+        // Более строгие условия для брасса, чтобы он не срабатывал для всех остальных стилей
+        else if abs(horizontalMovement - verticalMovement) < 0.25 && strokeFrequency < 0.5 && strokeFrequency > 0.15 && magnitude > 1.0 && magnitude < 1.7 && horizontalMovement > 0.8 && verticalMovement > 0.8 {
+            detectedStyle = "Брасс"
+        }
         
-        // Добавляем в историю определения стилей
-        if detectedStyle != "Не определен" {
-            styleDetectionHistory.append((detectedStyle, now))
-            // Ограничиваем историю последними 10 секундами
-            styleDetectionHistory = styleDetectionHistory.filter { now.timeIntervalSince($0.timestamp) < 10.0 }
-            
-            // Определяем наиболее частый стиль за последние 5 секунд
-            let recentDetections = styleDetectionHistory.filter { now.timeIntervalSince($0.timestamp) <= styleConfidenceWindow }
-            let styleCounts = Dictionary(grouping: recentDetections, by: { $0.style })
-                .mapValues { $0.count }
-            
-            if let mostCommonStyle = styleCounts.max(by: { $0.value < $1.value })?.key {
-                // Если это первый стиль, создаем начальный сегмент
-                if currentStyleSegment == nil && mostCommonStyle != "Не определен" {
+        // Добавляем в историю определения стилей (даже если "Не определен")
+        styleDetectionHistory.append((detectedStyle, now))
+        // Ограничиваем историю последними 10 секундами
+        styleDetectionHistory = styleDetectionHistory.filter { now.timeIntervalSince($0.timestamp) < 10.0 }
+        
+        // Определяем наиболее частый стиль за последние 5 секунд
+        let recentDetections = styleDetectionHistory.filter { now.timeIntervalSince($0.timestamp) <= styleConfidenceWindow }
+        guard !recentDetections.isEmpty else { return }
+        
+        let styleCounts = Dictionary(grouping: recentDetections, by: { $0.style })
+            .mapValues { $0.count }
+        
+        // Игнорируем "Не определен" при выборе стиля, если есть другие варианты
+        let validStyleCounts = styleCounts.filter { $0.key != "Не определен" }
+        let mostCommonStyle = (validStyleCounts.isEmpty ? styleCounts : validStyleCounts).max(by: { $0.value < $1.value })?.key ?? "Не определен"
+        
+        // Если это первый стиль и есть гребки, создаем начальный сегмент
+        if currentStyleSegment == nil {
+            if mostCommonStyle != "Не определен" {
+                changeSwimStyle(to: mostCommonStyle)
+            } else if strokeCount > 0 {
+                // Если стиль не определен, но есть гребки, создаем сегмент "Не определен"
+                changeSwimStyle(to: "Не определен")
+            }
+        }
+        // Если стиль изменился, создаем новый сегмент
+        else if mostCommonStyle != currentSwimStyle {
+            let styleDetections = recentDetections.filter { $0.style == mostCommonStyle }
+            if let firstDetection = styleDetections.first,
+               now.timeIntervalSince(firstDetection.timestamp) >= styleChangeThreshold {
+                // Если было остановлено движение, сразу меняем стиль (не ждем порога)
+                if isStopped {
+                    print("🔄 Стиль изменен после остановки: \(currentSwimStyle) -> \(mostCommonStyle)")
+                    changeSwimStyle(to: mostCommonStyle)
+                    isStopped = false // Сбрасываем флаг остановки
+                } else {
                     changeSwimStyle(to: mostCommonStyle)
                 }
-                // Если стиль изменился, создаем новый сегмент
-                else if mostCommonStyle != currentSwimStyle && mostCommonStyle != "Не определен" {
-                    let styleDetections = recentDetections.filter { $0.style == mostCommonStyle }
-                    if let firstDetection = styleDetections.first,
-                       now.timeIntervalSince(firstDetection.timestamp) >= styleChangeThreshold {
-                        changeSwimStyle(to: mostCommonStyle)
-                    }
-                }
             }
+        } else if isStopped && mostCommonStyle == currentSwimStyle {
+            // Если стиль не изменился после остановки, просто сбрасываем флаг
+            isStopped = false
         }
     }
     
     private func changeSwimStyle(to newStyle: String) {
         let now = Date()
         
-        // Завершаем текущий сегмент стиля
+        // Завершаем текущий сегмент стиля (но не записываем сегменты 25м здесь)
+        // Сегменты 25м записываются только при остановке движения
         if var currentSegment = currentStyleSegment {
             currentSegment.endTime = now
             // Вычисляем дистанцию для сегмента
             currentSegment.distance = calculateDistanceForSegment(segment: currentSegment)
-            // Вычисляем гребки на 25м для сегмента
-            currentSegment.strokesPer25m = calculateStrokesPer25m(
-                totalStrokes: currentSegment.strokeCount,
-                distance: currentSegment.distance
-            )
             styleSegments.append(currentSegment)
         }
         
-        // Начинаем новый сегмент стиля
-        currentSwimStyle = newStyle
-        currentStyleSegment = StyleSegment(
-            style: newStyle,
-            startTime: now,
-            endTime: nil,
-            strokeCount: 0,
-            distance: 0.0,
-            strokesPer25m: []
-        )
+        // Обновляем @Published свойства на главном потоке
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            // Начинаем новый сегмент стиля
+            self.currentSwimStyle = newStyle
+            self.currentStyleSegment = StyleSegment(
+                style: newStyle,
+                startTime: now,
+                endTime: nil,
+                strokeCount: 0,
+                distance: 0.0,
+                strokesPer25m: []
+            )
+            // Сбрасываем счетчик гребков для нового сегмента 25м
+            self.currentSegmentStrokes = 0
+            self.currentSegmentStartTime = now
+        }
         
         print("Стиль изменен на: \(newStyle)")
+    }
+    
+    // MARK: - Stop Detection and Segment Recording
+    private func startStopDetectionTimer() {
+        // Останавливаем предыдущий таймер на главном потоке
+        DispatchQueue.main.async { [weak self] in
+            self?.stopDetectionTimer?.invalidate()
+            self?.stopDetectionTimer = nil
+            
+            // Создаем новый таймер на главном потоке
+            self?.stopDetectionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                self?.checkForStop()
+            }
+        }
+    }
+    
+    private func checkForStop() {
+        guard isMonitoring else { return }
+        
+        let now = Date()
+        
+        // Проверяем, прошло ли более 5 секунд с последнего гребка
+        if let lastStroke = lastStrokeTime {
+            let timeSinceLastStroke = now.timeIntervalSince(lastStroke)
+            
+            if timeSinceLastStroke >= stopDetectionThreshold && !isStopped {
+                // Обнаружена остановка движения
+                isStopped = true
+                print("⏸️ Обнаружена остановка движения (прошло \(Int(timeSinceLastStroke))с без гребков)")
+                
+                // Записываем текущий сегмент 25м на главном потоке
+                DispatchQueue.main.async { [weak self] in
+                    self?.recordCurrentSegment25m()
+                    
+                    // После остановки сбрасываем счетчик для нового сегмента
+                    self?.currentSegmentStrokes = 0
+                    self?.currentSegmentStartTime = nil
+                }
+            }
+        } else if !isStopped {
+            // Если еще не было гребков, но прошло достаточно времени - тоже считаем остановкой
+            if let segmentStart = currentSegmentStartTime,
+               now.timeIntervalSince(segmentStart) >= stopDetectionThreshold {
+                isStopped = true
+                print("⏸️ Обнаружена остановка движения (нет активности)")
+            }
+        }
+    }
+    
+    private func recordCurrentSegment25m() {
+        // Этот метод должен вызываться на главном потоке
+        guard currentSegmentStrokes > 0, var currentSegment = currentStyleSegment else {
+            return
+        }
+        
+        // Добавляем сегмент 25м к текущему сегменту стиля
+        currentSegment.strokesPer25m.append(currentSegmentStrokes)
+        self.currentStyleSegment = currentSegment
+        print("📝 Записан сегмент 25м: стиль '\(currentSegment.style)', гребков: \(currentSegmentStrokes)")
+    }
+    
+    private func startNewSegmentAfterStop() {
+        // После остановки начинаем новый сегмент
+        // Стиль будет определен при следующем движении через detectSwimStyle
+        // Обновляем на главном потоке
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.currentSegmentStrokes = 0
+            self.currentSegmentStartTime = Date()
+        }
+        
+        // После остановки стиль может измениться, поэтому ждем нового определения
+        // detectSwimStyle() определит стиль при следующем движении
+        print("🔄 Начинаем новый сегмент после остановки, ожидаем определения стиля")
     }
     
     private func calculateDistanceForSegment(segment: StyleSegment) -> Double {
@@ -537,12 +806,16 @@ class SensorManager: ObservableObject {
             totalDistance += segmentDistance
         }
         
-        distance = totalDistance
-        
-        // Обновляем дистанцию текущего сегмента
-        if var segment = currentStyleSegment {
-            segment.distance = calculateDistanceForSegment(segment: segment)
-            currentStyleSegment = segment
+        // Обновляем @Published свойства на главном потоке
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.distance = totalDistance
+            
+            // Обновляем дистанцию текущего сегмента
+            if var segment = self.currentStyleSegment {
+                segment.distance = self.calculateDistanceForSegment(segment: segment)
+                self.currentStyleSegment = segment
+            }
         }
     }
     
@@ -585,7 +858,10 @@ class SensorManager: ObservableObject {
     }
     
     private func calibrateSurfacePressure() {
-        depth = 0.0
+        // Обновляем @Published свойство на главном потоке
+        DispatchQueue.main.async { [weak self] in
+            self?.depth = 0.0
+        }
         surfacePressure = nil
         isCalibrated = true
     }
@@ -597,7 +873,9 @@ class SensorManager: ObservableObject {
     private func startTemperatureMonitoring() {
         // Устанавливаем типичную температуру бассейна как начальное значение
         // В реальном приложении это будет обновляться при погружении
-        waterTemperature = 26.0
+        DispatchQueue.main.async { [weak self] in
+            self?.waterTemperature = 26.0
+        }
         
         // Пытаемся получить температуру из HealthKit (если доступна)
         // Для watchOS 11+ можно попробовать получить данные о температуре
@@ -660,10 +938,12 @@ class SensorManager: ObservableObject {
         if var currentSegment = currentStyleSegment {
             currentSegment.endTime = Date()
             currentSegment.distance = calculateDistanceForSegment(segment: currentSegment)
-            currentSegment.strokesPer25m = calculateStrokesPer25m(
-                totalStrokes: currentSegment.strokeCount,
-                distance: currentSegment.distance
-            )
+            
+            // Если есть незаписанные гребки в текущем сегменте, добавляем их как последний сегмент 25м
+            if currentSegmentStrokes > 0 {
+                currentSegment.strokesPer25m.append(currentSegmentStrokes)
+            }
+            
             allSegments.append(currentSegment)
         }
         
@@ -673,6 +953,31 @@ class SensorManager: ObservableObject {
     // MARK: - Get Styles Summary
     func getStylesSummary() -> [(style: String, totalStrokes: Int, totalDistance: Double, segments25m: [Int])] {
         let allSegments = getAllStyleSegments()
+        
+        // Если нет сегментов, но есть гребки, создаем сегмент "Не определен"
+        if allSegments.isEmpty && strokeCount > 0 {
+            let now = Date()
+            // Используем startTime из SensorManager или текущее время как fallback
+            let segmentStartTime = self.startTime ?? now
+            let estimatedDistance = calculateDistanceForSegment(segment: StyleSegment(
+                style: currentSwimStyle,
+                startTime: segmentStartTime,
+                endTime: now,
+                strokeCount: strokeCount,
+                distance: distance,
+                strokesPer25m: []
+            ))
+            let strokesPer25m = calculateStrokesPer25m(
+                totalStrokes: strokeCount,
+                distance: estimatedDistance
+            )
+            return [(
+                style: currentSwimStyle,
+                totalStrokes: strokeCount,
+                totalDistance: estimatedDistance,
+                segments25m: strokesPer25m
+            )]
+        }
         
         // Группируем сегменты по стилям
         let groupedByStyle = Dictionary(grouping: allSegments, by: { $0.style })
@@ -693,12 +998,6 @@ class SensorManager: ObservableObject {
     
     func reset() {
         stopMonitoring()
-        distance = 0.0
-        strokeCount = 0
-        heartRate = 0.0
-        depth = 0.0
-        waterTemperature = 0.0
-        currentSwimStyle = "Не определен"
         strokeHistory.removeAll()
         surfacePressure = nil
         isCalibrated = false
@@ -707,6 +1006,26 @@ class SensorManager: ObservableObject {
         styleSegments.removeAll()
         currentStyleSegment = nil
         styleDetectionHistory.removeAll()
+        authorizationRequested = false // Сбрасываем флаг авторизации
+        lastStrokeTime = nil
+        isStopped = false
+        
+        // Останавливаем таймер и сбрасываем переменные на главном потоке
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.stopDetectionTimer?.invalidate()
+            self.stopDetectionTimer = nil
+            self.currentSegmentStrokes = 0
+            self.currentSegmentStartTime = nil
+            
+            // Обновляем @Published свойства
+            self.distance = 0.0
+            self.strokeCount = 0
+            self.heartRate = 0.0
+            self.depth = 0.0
+            self.waterTemperature = 0.0
+            self.currentSwimStyle = "Не определен"
+        }
     }
 }
 

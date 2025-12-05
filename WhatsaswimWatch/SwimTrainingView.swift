@@ -119,13 +119,21 @@ struct SwimTrainingView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
-                startTimer()
+                // Если таймер еще не запущен, запускаем его
+                if timer == nil {
+                    startTimer()
+                }
+                // Если мониторинг еще не запущен, запускаем его
+                // startMonitoring() проверяет, не запущен ли уже мониторинг
                 sensorManager.startMonitoring()
             }
             .onDisappear {
+                // НЕ вызываем reset() здесь, так как это может сбросить данные до их сохранения
+                // reset() будет вызван только после завершения тренировки в endTraining()
+                // Останавливаем только таймер, но не мониторинг
                 stopTimer()
-                sensorManager.stopMonitoring()
-                sensorManager.reset()
+                // Не останавливаем мониторинг здесь, если тренировка еще не завершена
+                // sensorManager.stopMonitoring() вызывается в endTraining()
             }
             .navigationDestination(isPresented: $showResults) {
                 SwimResultsView(results: generateResults())
@@ -170,11 +178,23 @@ struct SwimTrainingView: View {
     
     private func endTraining() {
         stopTimer()
-        sensorManager.stopMonitoring() // Завершаем сессию тренировки
+        
+        // Генерируем результаты ПЕРЕД остановкой мониторинга, чтобы получить все данные
         let results = generateResults()
-        // Сохраняем результаты
+        
+        // Сохраняем результаты ПЕРЕД сбросом
         TrainingResultsManager.shared.saveResults(results)
+        print("✅ Результаты тренировки сохранены: \(results.styles.count) стилей, \(Int(results.distance))м, \(Int(results.duration))с")
+        
+        // Отправляем уведомление о сохранении результатов
         NotificationCenter.default.post(name: .trainingResultsSaved, object: nil)
+        
+        // Завершаем сессию тренировки ПОСЛЕ сохранения
+        sensorManager.stopMonitoring()
+        
+        // Только после сохранения сбрасываем данные сенсора
+        sensorManager.reset()
+        
         showResults = true
     }
     
@@ -183,7 +203,7 @@ struct SwimTrainingView: View {
         let stylesSummary = sensorManager.getStylesSummary()
         
         // Преобразуем в формат SwimStyle
-        let styles = stylesSummary.map { summary in
+        var styles = stylesSummary.map { summary in
             SwimStyle(
                 name: summary.style,
                 totalStrokes: summary.totalStrokes,
@@ -191,10 +211,13 @@ struct SwimTrainingView: View {
             )
         }
         
-        // Если стилей не было определено, используем общие данные
+        // Если стилей не было определено или все стили имеют 0 гребков, используем общие данные
+        let trainingData = sensorManager.getTrainingData()
+        let hasValidStyles = !styles.isEmpty && styles.contains { $0.totalStrokes > 0 }
+        
         let finalStyles: [SwimStyle]
-        if styles.isEmpty {
-            let trainingData = sensorManager.getTrainingData()
+        if !hasValidStyles && trainingData.strokeCount > 0 {
+            // Используем общие данные, если стили не определены, но есть гребки
             let strokesPer25m = estimateStrokesPer25m(
                 totalStrokes: trainingData.strokeCount,
                 distance: trainingData.distance
@@ -206,15 +229,28 @@ struct SwimTrainingView: View {
                     segments25m: strokesPer25m
                 )
             ]
+        } else if styles.isEmpty {
+            // Если вообще нет данных, создаем пустую запись
+            finalStyles = [
+                SwimStyle(
+                    name: "Не определен",
+                    totalStrokes: 0,
+                    segments25m: []
+                )
+            ]
         } else {
-            finalStyles = styles
+            // Фильтруем стили с нулевыми гребками, но оставляем хотя бы один
+            let filteredStyles = styles.filter { $0.totalStrokes > 0 }
+            finalStyles = filteredStyles.isEmpty ? styles : filteredStyles
         }
         
-        let trainingData = sensorManager.getTrainingData()
+        // Используем дистанцию из всех сегментов или общую дистанцию
+        let totalDistance = stylesSummary.isEmpty ? trainingData.distance : stylesSummary.reduce(0.0) { $0 + $1.totalDistance }
+        let finalDistance = totalDistance > 0 ? totalDistance : trainingData.distance
         
         return SwimResults(
             duration: elapsedTime,
-            distance: trainingData.distance,
+            distance: finalDistance,
             waterTemperature: sensorManager.waterTemperature,
             averageDepth: sensorManager.depth,
             styles: finalStyles
