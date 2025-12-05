@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXFileReference section */
+		B5AB15F12EE2D5140031D510 /* What's a swim?Watch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "What's a swim?Watch.entitlements"; sourceTree = "<group>"; };
+		B5AB15F22EE2D56B0031D510 /* What-s-a-swim-Watch-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "What-s-a-swim-Watch-Info.plist"; sourceTree = "<group>"; };
 		B5CAEBD92EE2AF1D001ADDEC /* What's a swim?.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "What's a swim?.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5CAEBF02EE2AF2D001ADDEC /* What's a swim?Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "What's a swim?Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -45,6 +47,8 @@
 		B5CAEBD02EE2AF1D001ADDEC = {
 			isa = PBXGroup;
 			children = (
+				B5AB15F22EE2D56B0031D510 /* What-s-a-swim-Watch-Info.plist */,
+				B5AB15F12EE2D5140031D510 /* What's a swim?Watch.entitlements */,
 				B5CAEBDB2EE2AF1D001ADDEC /* Whatsaswim */,
 				B5CAEBF12EE2AF2D001ADDEC /* WhatsaswimWatch */,
 				B5CAEBDA2EE2AF1D001ADDEC /* Products */,
@@ -122,6 +126,11 @@
 					};
 					B5CAEBEF2EE2AF2D001ADDEC = {
 						CreatedOnToolsVersion = 26.1;
+						SystemCapabilities = {
+							com.apple.HealthKit = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
@@ -372,14 +381,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "What's a swim?Watch.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = H2GFBK2X44;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Приложению необходим доступ к данным о здоровье для отслеживания тренировок по плаванию.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Приложению необходим доступ к данным о здоровье для сохранения результатов тренировок.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_WKBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -408,14 +421,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "What's a swim?Watch.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = H2GFBK2X44;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Приложению необходим доступ к данным о здоровье для отслеживания тренировок по плаванию.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Приложению необходим доступ к данным о здоровье для сохранения результатов тренировок.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_WKBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

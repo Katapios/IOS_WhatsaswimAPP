@@ -34,20 +34,6 @@
     },
     {
       "idiom": "watch",
-      "size": "29x29",
-      "scale": "2x",
-      "filename": "AppIcon-watch-companionSettings-58-filledcircle-noshrink.png",
-      "role": "companionSettings"
-    },
-    {
-      "idiom": "watch",
-      "size": "29x29",
-      "scale": "3x",
-      "filename": "AppIcon-watch-companionSettings-87-filledcircle-noshrink.png",
-      "role": "companionSettings"
-    },
-    {
-      "idiom": "watch",
       "size": "40x40",
       "scale": "2x",
       "filename": "AppIcon-watch-appLauncher-38mm-80-filledcircle-noshrink.png",
