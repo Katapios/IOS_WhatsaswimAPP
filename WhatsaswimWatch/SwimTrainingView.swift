@@ -13,6 +13,7 @@ struct SwimTrainingView: View {
     @State private var elapsedTime: TimeInterval = 0
     @State private var isPaused = false
     @State private var timer: Timer?
+    @State private var showResults = false
     
     // Mock data - в реальном приложении это будет из датчиков
     @State private var waterTemperature: Double = 26.5
@@ -20,7 +21,8 @@ struct SwimTrainingView: View {
     @State private var distance: Double = 0.0
     
     var body: some View {
-        VStack(spacing: 6) {
+        NavigationStack {
+            VStack(spacing: 6) {
             // Время тренировки
             Text(formatTime(elapsedTime))
                 .font(.title3)
@@ -33,11 +35,11 @@ struct SwimTrainingView: View {
                 Image(systemName: "thermometer")
                     .font(.system(size: 12))
                     .foregroundStyle(.orange)
-                Text("Water")
+                Text("Вода")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("\(waterTemperature, specifier: "%.1f")°C")
+                Text(String(format: "%.1f°C", waterTemperature))
                     .font(.caption)
                     .fontWeight(.medium)
             }
@@ -48,11 +50,11 @@ struct SwimTrainingView: View {
                 Image(systemName: "arrow.down.circle")
                     .font(.system(size: 12))
                     .foregroundStyle(.blue)
-                Text("Depth")
+                Text("Глубина")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("\(depth, specifier: "%.1f") m")
+                Text(String(format: "%.1f м", depth))
                     .font(.caption)
                     .fontWeight(.medium)
             }
@@ -63,11 +65,11 @@ struct SwimTrainingView: View {
                 Image(systemName: "figure.pool.swim")
                     .font(.system(size: 12))
                     .foregroundStyle(.cyan)
-                Text("Distance")
+                Text("Дистанция")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("\(distance, specifier: "%.0f") m")
+                Text(String(format: "%.0f м", distance))
                     .font(.caption)
                     .fontWeight(.medium)
             }
@@ -81,7 +83,7 @@ struct SwimTrainingView: View {
             }) {
                 HStack {
                     Image(systemName: isPaused ? "play.fill" : "pause.fill")
-                    Text(isPaused ? "Resume" : "Pause")
+                    Text(isPaused ? "Продолжить" : "Пауза")
                 }
                 .font(.caption)
                 .fontWeight(.semibold)
@@ -102,7 +104,7 @@ struct SwimTrainingView: View {
             }) {
                 HStack {
                     Image(systemName: "stop.fill")
-                    Text("End Training")
+                    Text("Завершить")
                 }
                 .font(.caption)
                 .fontWeight(.semibold)
@@ -118,12 +120,16 @@ struct SwimTrainingView: View {
             .padding(.horizontal, 8)
             .padding(.bottom, 4)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            startTimer()
-        }
-        .onDisappear {
-            stopTimer()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onAppear {
+                startTimer()
+            }
+            .onDisappear {
+                stopTimer()
+            }
+            .navigationDestination(isPresented: $showResults) {
+                SwimResultsView(results: generateResults())
+            }
         }
     }
     
@@ -161,7 +167,26 @@ struct SwimTrainingView: View {
     
     private func endTraining() {
         stopTimer()
-        dismiss()
+        showResults = true
+    }
+    
+    private func generateResults() -> SwimResults {
+        // Mock данные для демонстрации
+        // В реальном приложении эти данные будут собираться во время тренировки
+        let styles = [
+            SwimStyle(name: "Баттерфляй", totalStrokes: Int(distance / 4.0), segments25m: [28, 30, 29, 33]),
+            SwimStyle(name: "Вольный стиль", totalStrokes: Int(distance / 2.5), segments25m: [18, 19, 18, 20, 19]),
+            SwimStyle(name: "На спине", totalStrokes: Int(distance / 3.3), segments25m: [22, 23, 22]),
+            SwimStyle(name: "Брасс", totalStrokes: Int(distance / 5.0), segments25m: [15, 16, 15])
+        ]
+        
+        return SwimResults(
+            duration: elapsedTime,
+            distance: distance,
+            waterTemperature: waterTemperature,
+            averageDepth: depth,
+            styles: styles
+        )
     }
 }
 

@@ -31,7 +31,7 @@ struct WatchContentView: View {
                 }
                 .buttonStyle(.plain)
                 
-                Text("Let's Swim!")
+                Text("Поплыли!")
                     .font(.title3)
                     .fontWeight(.semibold)
                     .foregroundStyle(.primary)
