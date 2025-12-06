@@ -21,6 +21,20 @@
                ReferencedContainer = "container:What&apos;s a swim?.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B5CAEBEF2EE2AF2D001ADDEC"
+               BuildableName = "What&apos;s a swim?Watch.app"
+               BlueprintName = "What&apos;s a swim?Watch"
+               ReferencedContainer = "container:What&apos;s a swim?.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
