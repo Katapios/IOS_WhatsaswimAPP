@@ -175,17 +175,27 @@ struct StatisticsView: View {
         var stats: [String: (totalStrokes: Int, totalDistance: Double, count: Int)] = [:]
         
         for result in allResults {
+            // Общий объём гребков по всем стилям в этой тренировке
+            let totalStrokesAll = result.results.styles.reduce(0) { $0 + $1.totalStrokes }
+            
+            // Если по каким-то причинам гребков нет, распределять дистанцию нечего
+            guard totalStrokesAll > 0 else { continue }
+            
             for style in result.results.styles {
+                // Доля дистанции для конкретного стиля пропорционально количеству гребков
+                let fraction = Double(style.totalStrokes) / Double(totalStrokesAll)
+                let styleDistance = result.results.distance * fraction
+                
                 if let existing = stats[style.name] {
                     stats[style.name] = (
                         totalStrokes: existing.totalStrokes + style.totalStrokes,
-                        totalDistance: existing.totalDistance + (result.results.distance * Double(style.totalStrokes) / Double(result.results.styles.reduce(0) { $0 + $1.totalStrokes })),
+                        totalDistance: existing.totalDistance + styleDistance,
                         count: existing.count + 1
                     )
                 } else {
                     stats[style.name] = (
                         totalStrokes: style.totalStrokes,
-                        totalDistance: result.results.distance * Double(style.totalStrokes) / Double(result.results.styles.reduce(0) { $0 + $1.totalStrokes }),
+                        totalDistance: styleDistance,
                         count: 1
                     )
                 }
