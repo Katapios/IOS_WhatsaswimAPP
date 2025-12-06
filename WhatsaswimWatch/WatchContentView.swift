@@ -62,23 +62,6 @@ struct WatchContentView: View {
                     .padding(.horizontal, 8)
                     .padding(.top, 8)
                 }
-
-                Button(action: {
-                    let testResults = SwimResults(
-                        duration: 60,
-                        distance: 100,
-                        waterTemperature: 25,
-                        averageDepth: 2,
-                        styles: []
-                    )
-                    let testEntry = SavedTrainingResult(date: Date(), results: testResults)
-                    WatchConnectivityManager.shared.sendTrainingResults(testEntry)
-                }) {
-                    Text("Тестовая отправка")
-                        .font(.caption2)
-                        .foregroundStyle(.yellow)
-                }
-                .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding()
