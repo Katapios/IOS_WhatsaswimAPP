@@ -61,6 +61,8 @@ class SensorManager: ObservableObject {
     @Published var heartRate: Double = 0.0
     @Published var strokeCount: Int = 0
     @Published var currentSwimStyle: String = "Не определен"
+    @Published var lastSegmentStrokes: Int = 0
+    @Published var lastSegmentStyle: String = ""
     
     private var isMonitoring = false
     private var startTime: Date?
@@ -739,6 +741,9 @@ class SensorManager: ObservableObject {
         // Добавляем сегмент 25м к текущему сегменту стиля
         currentSegment.strokesPer25m.append(currentSegmentStrokes)
         self.currentStyleSegment = currentSegment
+        // Сохраняем информацию о завершённом сегменте для отображения на экране тренировки
+        self.lastSegmentStrokes = currentSegmentStrokes
+        self.lastSegmentStyle = currentSegment.style
         print("📝 Записан сегмент 25м: стиль '\(currentSegment.style)', гребков: \(currentSegmentStrokes)")
     }
     
@@ -1034,6 +1039,8 @@ class SensorManager: ObservableObject {
             self.depth = 0.0
             self.waterTemperature = 0.0
             self.currentSwimStyle = "Не определен"
+            self.lastSegmentStrokes = 0
+            self.lastSegmentStyle = ""
         }
     }
 }

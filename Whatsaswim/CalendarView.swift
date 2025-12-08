@@ -344,155 +344,96 @@ struct TrainingDetailView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                if let results = dataManager.getTrainingResults(for: date) {
+                let dayResults = dataManager.getResults(for: date)
+                if !dayResults.isEmpty {
                     VStack(spacing: 20) {
                         // Заголовок с датой и временем
                         VStack(spacing: 8) {
                             Text(dateFormatter.string(from: date).capitalized)
                                 .font(.title)
                                 .fontWeight(.bold)
-                            
-                            if let savedResult = dataManager.getSavedResult(for: date) {
-                                Text("Время тренировки: \(timeFormatter.string(from: savedResult.date))")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text("Тренировок за день: \(dayResults.count)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
                         .padding(.top, 20)
                         .padding(.bottom, 10)
-                        
-                        // Основные показатели - большие карточки
-                        HStack(spacing: 16) {
-                            // Длительность
-                            VStack(spacing: 8) {
-                                Image(systemName: "clock.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(.blue)
-                                Text("Длительность")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(formatTime(results.duration))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .monospacedDigit()
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.blue.opacity(0.1))
-                            )
-                            
-                            // Дистанция
-                            VStack(spacing: 8) {
-                                Image(systemName: "figure.pool.swim")
-                                    .font(.title2)
-                                    .foregroundStyle(.cyan)
-                                Text("Дистанция")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text("\(Int(results.distance)) м")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.cyan.opacity(0.1))
-                            )
-                        }
-                        .padding(.horizontal)
-                        
-                        // Стили плавания
+                        // Список всех тренировок за день
                         VStack(alignment: .leading, spacing: 16) {
-                            HStack {
-                                Image(systemName: "list.bullet")
-                                    .foregroundStyle(.blue)
-                                Text("Стили плавания")
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-                            }
-                            .padding(.horizontal)
-                            
-                            ForEach(results.styles, id: \.name) { style in
-                                StyleCard(style: style)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                        
-                        // Дополнительная информация
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack {
-                                Image(systemName: "info.circle")
-                                    .foregroundStyle(.blue)
-                                Text("Дополнительная информация")
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-                            }
-                            .padding(.horizontal)
-                            
-                            VStack(spacing: 12) {
-                                DetailRow(
-                                    icon: "thermometer",
-                                    label: "Температура воды",
-                                    value: String(format: "%.1f°C", results.waterTemperature),
-                                    color: .orange
-                                )
-                                
-                                DetailRow(
-                                    icon: "arrow.down.circle",
-                                    label: "Средняя глубина",
-                                    value: String(format: "%.1f м", results.averageDepth),
-                                    color: .blue
-                                )
-                                
-                                DetailRow(
-                                    icon: "speedometer",
-                                    label: "Средняя скорость",
-                                    value: String(format: "%.1f м/мин", calculateAverageSpeed(distance: results.distance, duration: results.duration)),
-                                    color: .green
-                                )
-                                
-                                DetailRow(
-                                    icon: "figure.pool.swim",
-                                    label: "Всего гребков",
-                                    value: "\(results.styles.reduce(0) { $0 + $1.totalStrokes })",
-                                    color: .cyan
-                                )
-                                
-                                // Статистика по стилям
-                                if results.styles.count > 1 {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Распределение по стилям:")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .padding(.horizontal, 16)
+                            ForEach(Array(dayResults.enumerated()), id: \.offset) { _, savedResult in
+                                let results = savedResult.results
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack {
+                                        Text("Тренировка в \(timeFormatter.string(from: savedResult.date))")
+                                            .font(.headline)
+                                        Spacer()
+                                    }
+                                    
+                                    HStack(spacing: 16) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Длительность")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                            Text(formatTime(results.duration))
+                                                .font(.body)
+                                                .fontWeight(.semibold)
+                                                .monospacedDigit()
+                                        }
                                         
-                                        ForEach(results.styles, id: \.name) { style in
-                                            HStack {
-                                                Text(style.name)
-                                                    .font(.subheadline)
-                                                Spacer()
-                                                Text("\(Int(style.totalStrokes)) гребков")
-                                                    .font(.subheadline)
-                                                    .fontWeight(.medium)
-                                                Text("(\(Int(calculateDistanceForStyle(style: style, totalDistance: results.distance, totalStrokes: results.styles.reduce(0) { $0 + $1.totalStrokes }))) м)")
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                            .padding(.horizontal, 16)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Дистанция")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                            Text("\(Int(results.distance)) м")
+                                                .font(.body)
+                                                .fontWeight(.semibold)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Гребков")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                            Text("\(results.styles.reduce(0) { $0 + $1.totalStrokes })")
+                                                .font(.body)
+                                                .fontWeight(.semibold)
                                         }
                                     }
-                                    .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(Color.gray.opacity(0.1))
-                                    )
-                                    .padding(.horizontal)
+                                    
+                                    if !results.styles.isEmpty {
+                                        Divider()
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Стили:")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                            ForEach(results.styles, id: \.name) { style in
+                                                HStack {
+                                                    Text(style.name)
+                                                        .font(.subheadline)
+                                                    Spacer()
+                                                    Text("\(style.totalStrokes) гребков")
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                            }
+                                            // Сворачивающийся список с детализацией по 25 м для каждого стиля
+                                            DisclosureGroup("Гребки по 25 м") {
+                                                VStack(alignment: .leading, spacing: 8) {
+                                                    ForEach(results.styles, id: \.name) { style in
+                                                        StyleCard(style: style)
+                                                    }
+                                                }
+                                            }
+                                            .font(.subheadline)
+                                        }
+                                    }
                                 }
+                                .padding()
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(Color.gray.opacity(0.1))
+                                )
+                                .padding(.horizontal)
                             }
-                            .padding(.horizontal)
                         }
                         .padding(.bottom, 20)
                     }

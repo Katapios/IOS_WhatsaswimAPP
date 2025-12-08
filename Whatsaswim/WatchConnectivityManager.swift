@@ -30,6 +30,32 @@ class WatchConnectivityManager: NSObject {
         }
     }
     
+    // MARK: - Clear Trainings on Watch
+    func sendClearCommand(scope: String) {
+        guard let session = session else {
+            print("⚠️ WCSession не инициализирован")
+            return
+        }
+        
+        let message: [String: Any] = [
+            "type": "clearTrainings",
+            "scope": scope
+        ]
+        
+        if session.isReachable {
+            session.sendMessage(message, replyHandler: nil) { error in
+                print("❌ Ошибка отправки команды очистки на часы: \(error.localizedDescription)")
+            }
+        } else {
+            do {
+                try session.updateApplicationContext(message)
+                print("✅ Команда очистки (scope=\(scope)) сохранена в контекст приложения для передачи на часы")
+            } catch {
+                print("❌ Ошибка сохранения команды очистки в контекст: \(error.localizedDescription)")
+            }
+        }
+    }
+    
     // MARK: - Request All Data from Watch (опционально, для ручного запроса)
     func requestAllData() {
         guard let session = session else {
@@ -184,6 +210,14 @@ extension WatchConnectivityManager: WCSessionDelegate {
                 print("⚠️ Сообщение allTrainingResults не содержит данных")
             }
             
+        case "clearTrainings":
+            let scope = (message["scope"] as? String) ?? "all"
+            print("🗑 Получена команда очистки тренировок с часов, scope=\(scope)")
+            if scope == "today" {
+                trainingDataManager.clearTodayResults()
+            } else {
+                trainingDataManager.clearAllResults()
+            }
         default:
             print("⚠️ Неизвестный тип сообщения: \(type)")
             break
@@ -229,11 +263,8 @@ extension WatchConnectivityManager: WCSessionDelegate {
         
         var allResults = loadAllResultsFromUserDefaults(userDefaults)
         
-        // Проверяем, есть ли уже результат за эту дату
-        let dayStart = Calendar.current.startOfDay(for: result.date)
-        if let existingIndex = allResults.firstIndex(where: { result in
-            Calendar.current.startOfDay(for: result.date) == dayStart
-        }) {
+        // Разрешаем несколько тренировок в день, но не дублируем одну и ту же (с тем же самым временем)
+        if let existingIndex = allResults.firstIndex(where: { $0.date == result.date }) {
             allResults[existingIndex] = result
         } else {
             allResults.append(result)
@@ -254,15 +285,11 @@ extension WatchConnectivityManager: WCSessionDelegate {
             return
         }
         
-        // Объединяем с существующими результатами
+        // Объединяем с существующими результатами, разрешая несколько тренировок в день,
+        // но не создавая дубликаты с одинаковым временем date
         var existingResults = loadAllResultsFromUserDefaults(userDefaults)
-        
-        // Добавляем новые результаты, избегая дубликатов
         for newResult in results {
-            let dayStart = Calendar.current.startOfDay(for: newResult.date)
-            if let existingIndex = existingResults.firstIndex(where: { result in
-                Calendar.current.startOfDay(for: result.date) == dayStart
-            }) {
+            if let existingIndex = existingResults.firstIndex(where: { $0.date == newResult.date }) {
                 existingResults[existingIndex] = newResult
             } else {
                 existingResults.append(newResult)

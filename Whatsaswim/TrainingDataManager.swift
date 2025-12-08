@@ -95,6 +95,19 @@ class TrainingDataManager: ObservableObject {
         })
     }
     
+    // MARK: - Get All Results for Date
+    func getResults(for date: Date) -> [SavedTrainingResult] {
+        let allResults = loadAllResults()
+        let dayStart = Calendar.current.startOfDay(for: date)
+        
+        let dayResults = allResults.filter { result in
+            Calendar.current.startOfDay(for: result.date) == dayStart
+        }
+        
+        // Сортируем по времени (новые сначала)
+        return dayResults.sorted { $0.date > $1.date }
+    }
+    
     // MARK: - Load All Results
     private func loadAllResults() -> [SavedTrainingResult] {
         // Читаем данные из App Group через UserDefaults
@@ -121,6 +134,32 @@ class TrainingDataManager: ObservableObject {
     // MARK: - Get All Results
     func getAllResults() -> [SavedTrainingResult] {
         return loadAllResults()
+    }
+
+    // MARK: - Clear Results
+    func clearAllResults() {
+        userDefaults.removeObject(forKey: resultsKey)
+        DispatchQueue.main.async { [weak self] in
+            self?.trainingDates = []
+            NotificationCenter.default.post(name: .trainingResultsSaved, object: nil)
+        }
+    }
+    
+    func clearTodayResults() {
+        var allResults = loadAllResults()
+        let todayStart = Calendar.current.startOfDay(for: Date())
+        allResults.removeAll { result in
+            Calendar.current.startOfDay(for: result.date) == todayStart
+        }
+        if let encoded = try? JSONEncoder().encode(allResults) {
+            userDefaults.set(encoded, forKey: resultsKey)
+        } else {
+            userDefaults.removeObject(forKey: resultsKey)
+        }
+        loadTrainingDates()
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .trainingResultsSaved, object: nil)
+        }
     }
 }
 

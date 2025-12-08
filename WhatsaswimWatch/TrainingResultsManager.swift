@@ -117,6 +117,24 @@ class TrainingResultsManager {
             userDefaults.set(encoded, forKey: resultsKey)
         }
     }
+
+    // MARK: - Clear Results
+    func clearAllResults() {
+        userDefaults.removeObject(forKey: resultsKey)
+    }
+    
+    func clearTodayResults() {
+        var allResults = loadAllResults()
+        let todayStart = Calendar.current.startOfDay(for: Date())
+        allResults.removeAll { result in
+            Calendar.current.startOfDay(for: result.date) == todayStart
+        }
+        if let encoded = try? JSONEncoder().encode(allResults) {
+            userDefaults.set(encoded, forKey: resultsKey)
+        } else {
+            userDefaults.removeObject(forKey: resultsKey)
+        }
+    }
 }
 
 // MARK: - Saved Training Result Model

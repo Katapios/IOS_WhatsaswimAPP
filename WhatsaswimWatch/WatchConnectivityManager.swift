@@ -284,4 +284,24 @@ extension WatchConnectivityManager: WCSessionDelegate {
             print("⚠️ iPhone недоступен (данные сохранены в App Group)")
         }
     }
+
+    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        guard let type = message["type"] as? String else {
+            print("⚠️ Сообщение от iPhone без типа")
+            return
+        }
+        
+        switch type {
+        case "clearTrainings":
+            let scope = (message["scope"] as? String) ?? "all"
+            print("🗑 [Watch] Получена команда очистки тренировок от iPhone, scope=\(scope)")
+            if scope == "today" {
+                TrainingResultsManager.shared.clearTodayResults()
+            } else {
+                TrainingResultsManager.shared.clearAllResults()
+            }
+        default:
+            print("⚠️ [Watch] Неизвестный тип сообщения: \(type)")
+        }
+    }
 }

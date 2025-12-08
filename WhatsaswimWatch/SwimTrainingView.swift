@@ -24,7 +24,37 @@ struct SwimTrainingView: View {
                     .fontWeight(.bold)
                     .monospacedDigit()
                     .padding(.top, 2)
-                
+
+                // Температура воды
+                HStack {
+                    Image(systemName: "thermometer")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.orange)
+                    Text("Вода")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(String(format: "%.1f°C", sensorManager.waterTemperature))
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .padding(.horizontal, 8)
+
+                // Глубина погружения
+                HStack {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.blue)
+                    Text("Глубина")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(String(format: "%.1f м", sensorManager.depth))
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .padding(.horizontal, 8)
+
                 // Текущий стиль плавания
                 HStack {
                     Image(systemName: "figure.pool.swim")
@@ -39,13 +69,13 @@ struct SwimTrainingView: View {
                         .fontWeight(.medium)
                 }
                 .padding(.horizontal, 8)
-                
+
                 // Гребки в текущем отрезке (до остановки)
                 HStack {
                     Image(systemName: "hand.wave")
                         .font(.system(size: 12))
                         .foregroundStyle(.blue)
-                    Text("Гребков в отрезке")
+                    Text("Гребков в текущем отрезке")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -54,6 +84,23 @@ struct SwimTrainingView: View {
                         .fontWeight(.medium)
                 }
                 .padding(.horizontal, 8)
+
+                // Гребки в последнем завершенном отрезке 25 м (после остановки ≥5 сек)
+                if sensorManager.lastSegmentStrokes > 0 {
+                    HStack {
+                        Image(systemName: "flag.checkered")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.green)
+                        Text("Последний 25 м")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(sensorManager.lastSegmentStrokes) гребков")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.horizontal, 8)
+                }
                 
                 // Дистанция
                 HStack {

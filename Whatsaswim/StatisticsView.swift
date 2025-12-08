@@ -12,6 +12,7 @@ struct StatisticsView: View {
     @State private var allResults: [SavedTrainingResult] = []
     @State private var isLoading = true
     @State private var refreshTimer: Timer?
+    @State private var showClearConfirmation = false
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -103,13 +104,34 @@ struct StatisticsView: View {
                             }
                             .padding(.horizontal)
                             
-                            ForEach(allResults.sorted(by: { $0.date > $1.date }).prefix(5), id: \.date) { result in
+                            ForEach(Array(allResults.sorted(by: { $0.date > $1.date }).prefix(5).enumerated()), id: \.offset) { _, result in
                                 RecentTrainingCard(result: result)
                                     .onTapGesture {
                                         // При клике открываем детальный просмотр
                                         // Это можно реализовать через NavigationLink или sheet
                                     }
                             }
+                        }
+                        // Кнопка очистки данных
+                        VStack {
+                            Button(role: .destructive) {
+                                showClearConfirmation = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "trash")
+                                    Text("Очистить тренировки")
+                                }
+                                .font(.body)
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.red.opacity(0.1))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal)
                         }
                     }
                     .padding(.vertical)
@@ -132,6 +154,21 @@ struct StatisticsView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.loadStatistics()
                 }
+            }
+            .confirmationDialog("Очистить тренировки", isPresented: $showClearConfirmation, titleVisibility: .visible) {
+                Button("Удалить тренировки за сегодня", role: .destructive) {
+                    dataManager.clearTodayResults()
+                    WatchConnectivityManager.shared.sendClearCommand(scope: "today")
+                    loadStatistics()
+                }
+                Button("Удалить все тренировки", role: .destructive) {
+                    dataManager.clearAllResults()
+                    WatchConnectivityManager.shared.sendClearCommand(scope: "all")
+                    loadStatistics()
+                }
+                Button("Отмена", role: .cancel) { }
+            } message: {
+                Text("Выберите, какие данные удалить: только за сегодня или все тренировки полностью. Данные будут удалены и на часах, и на телефоне.")
             }
         }
     }
