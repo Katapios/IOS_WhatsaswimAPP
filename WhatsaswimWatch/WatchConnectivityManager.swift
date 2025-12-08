@@ -285,9 +285,21 @@ extension WatchConnectivityManager: WCSessionDelegate {
         }
     }
 
+    // Сообщение по прямому каналу (sendMessage)
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        handleMessage(message)
+    }
+    
+    // Контекст приложения (updateApplicationContext)
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        print("📦 [Watch] Получен applicationContext от iPhone: \(applicationContext.keys)")
+        handleMessage(applicationContext)
+    }
+    
+    // Общая обработка команд от iPhone
+    private func handleMessage(_ message: [String: Any]) {
         guard let type = message["type"] as? String else {
-            print("⚠️ Сообщение от iPhone без типа")
+            print("⚠️ [Watch] Сообщение от iPhone без типа")
             return
         }
         
