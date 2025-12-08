@@ -38,7 +38,6 @@ class TrainingResultsManager {
         var allResults = loadAllResults()
         
         let now = Date()
-        let todayStart = Calendar.current.startOfDay(for: now)
         
         print("💾 Сохранение результатов тренировки...")
         print("   - Текущее количество записей: \(allResults.count)")
@@ -47,22 +46,13 @@ class TrainingResultsManager {
         print("   - Дистанция: \(Int(results.distance))м")
         print("   - Длительность: \(Int(results.duration))с")
         
-        // Проверяем, есть ли уже результаты за сегодня
-        // Если есть, заменяем их (на случай, если тренировка была завершена несколько раз)
-        if let existingIndex = allResults.firstIndex(where: { result in
-            Calendar.current.startOfDay(for: result.date) == todayStart
-        }) {
-            print("⚠️ Найдены существующие результаты за сегодня, заменяем их")
-            allResults[existingIndex] = SavedTrainingResult(date: now, results: results)
-        } else {
-            // Создаем новую запись с текущей датой
-            let resultEntry = SavedTrainingResult(
-                date: now,
-                results: results
-            )
-            allResults.append(resultEntry)
-            print("➕ Добавлена новая запись тренировки")
-        }
+        // Всегда создаем новую запись с текущей датой (не перезаписываем тренировки за тот же день)
+        let resultEntry = SavedTrainingResult(
+            date: now,
+            results: results
+        )
+        allResults.append(resultEntry)
+        print("➕ Добавлена новая запись тренировки")
         
         // Сортируем по дате (новые сначала)
         allResults.sort { $0.date > $1.date }

@@ -65,7 +65,7 @@ class SensorManager: ObservableObject {
     private var isMonitoring = false
     private var startTime: Date?
     private var lastAcceleration: CMAcceleration?
-    private var strokeDetectionThreshold: Double = 2.0
+    private var strokeDetectionThreshold: Double = 0.8
     private var strokeHistory: [Date] = []
     private var surfacePressure: NSNumber?
     private var isCalibrated = false
@@ -116,12 +116,8 @@ class SensorManager: ObservableObject {
             return
         }
         
-        // Сначала проверяем текущий статус авторизации
-        guard let workoutType = HKObjectType.workoutType() as? HKObjectType else {
-            print("❌ Не удалось получить тип тренировки для HealthKit")
-            completion?()
-            return
-        }
+        // Сначала получаем тип тренировки
+        let workoutType = HKObjectType.workoutType()
         
         let currentStatus = healthStore.authorizationStatus(for: workoutType)
         print("📊 Текущий статус авторизации HealthKit: \(currentStatus.rawValue)")
@@ -176,13 +172,7 @@ class SensorManager: ObservableObject {
     }
     
     private func checkHealthKitAuthorizationStatus(completion: (() -> Void)? = nil) {
-        guard let workoutType = HKObjectType.workoutType() as? HKObjectType else {
-            isHealthKitAuthorized = false
-            print("❌ Не удалось получить тип тренировки для HealthKit")
-            completion?()
-            return
-        }
-        
+        let workoutType = HKObjectType.workoutType()
         let status = healthStore.authorizationStatus(for: workoutType)
         
         // Определяем статус авторизации
@@ -380,7 +370,7 @@ class SensorManager: ObservableObject {
             print("✅ Сессия тренировки запущена, экран не должен блокироваться")
             
             // Затем начинаем сбор данных асинхронно
-            workoutBuilder?.beginCollection(withStart: startDate) { [weak self] success, error in
+            workoutBuilder?.beginCollection(withStart: startDate) { success, error in
                 DispatchQueue.main.async {
                     if let error = error {
                         print("❌ Ошибка начала сбора данных тренировки: \(error.localizedDescription)")
@@ -539,9 +529,9 @@ class SensorManager: ObservableObject {
     private func detectStroke() {
         let now = Date()
         
-        // Фильтруем слишком частые гребки (минимум 0.5 секунды между гребками)
+        // Фильтруем слишком частые гребки (минимум 0.25 секунды между гребками)
         if let lastStroke = strokeHistory.last,
-           now.timeIntervalSince(lastStroke) < 0.5 {
+           now.timeIntervalSince(lastStroke) < 0.25 {
             return
         }
         
@@ -588,22 +578,31 @@ class SensorManager: ObservableObject {
         // ВАЖНО: Проверяем в порядке от наиболее специфичных к менее специфичным
         var detectedStyle: String = "Не определен"
         
-        // Баттерфляй - очень сильные вертикальные движения, высокая частота
-        if verticalMovement > 2.0 && strokeFrequency > 0.7 && horizontalMovement < 1.5 {
+        // Баттерфляй – преобладают сильные вертикальные движения и достаточно высокая частота гребков
+        if verticalMovement > 1.2 && strokeFrequency > 0.6 && horizontalMovement < 2.0 && magnitude > 1.2 {
             detectedStyle = "Баттерфляй"
         }
-        // Кроль - быстрые горизонтальные движения, высокая частота, низкая вертикальная составляющая
-        else if horizontalMovement > 1.5 && strokeFrequency > 0.8 && verticalMovement < 1.3 {
+        // Кроль – выраженные горизонтальные движения, высокая частота, вертикальная составляющая умеренная
+        else if horizontalMovement > 1.0 && strokeFrequency > 0.7 && verticalMovement < 1.5 {
             detectedStyle = "Кроль"
         }
-        // На спине - умеренные движения, средняя частота, горизонтальные движения преобладают
-        else if horizontalMovement > 1.0 && horizontalMovement < 1.5 && strokeFrequency > 0.5 && strokeFrequency < 0.8 && verticalMovement < 1.0 {
+        // На спине – горизонтальные движения преобладают, частота средняя, вертикальная составляющая невысокая
+        else if horizontalMovement > 0.7 && strokeFrequency >= 0.4 && strokeFrequency <= 0.8 && verticalMovement < 1.2 {
             detectedStyle = "На спине"
         }
-        // Брасс - симметричные движения (вертикальные и горизонтальные близки), низкая частота, средняя величина
-        // Более строгие условия для брасса, чтобы он не срабатывал для всех остальных стилей
-        else if abs(horizontalMovement - verticalMovement) < 0.25 && strokeFrequency < 0.5 && strokeFrequency > 0.15 && magnitude > 1.0 && magnitude < 1.7 && horizontalMovement > 0.8 && verticalMovement > 0.8 {
+        // Брасс – вертикальное и горизонтальное движение близки по величине, частота ниже, общая амплитуда средняя
+        else if abs(horizontalMovement - verticalMovement) < 0.4 && strokeFrequency < 0.6 && strokeFrequency > 0.15 && magnitude > 0.8 && magnitude < 2.0 {
             detectedStyle = "Брасс"
+        }
+        // Fallback: если явного стиля нет, но есть гребки, пробуем выбрать наиболее правдоподобный
+        else if strokeFrequency > 0 {        
+            if horizontalMovement >= verticalMovement {
+                // Если горизонтальное движение доминирует, отдаем предпочтение кролю/спине
+                detectedStyle = strokeFrequency > 0.6 ? "Кроль" : "На спине"
+            } else {
+                // Если вертикальное движение заметнее, скорее всего баттерфляй или брасс
+                detectedStyle = strokeFrequency > 0.5 ? "Баттерфляй" : "Брасс"
+            }
         }
         
         // Добавляем в историю определения стилей (даже если "Не определен")
@@ -807,7 +806,14 @@ class SensorManager: ObservableObject {
         // Обновляем @Published свойства на главном потоке
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.distance = totalDistance
+            // Если по сегментам дистанция почти не набралась, но есть гребки,
+            // используем простую оценку на основе общего количества гребков
+            if totalDistance <= 0 && self.strokeCount > 0 {
+                let fallbackDistance = Double(self.strokeCount) * 1.7
+                self.distance = fallbackDistance
+            } else {
+                self.distance = totalDistance
+            }
             
             // Обновляем дистанцию текущего сегмента
             if var segment = self.currentStyleSegment {
@@ -926,6 +932,11 @@ class SensorManager: ObservableObject {
     // MARK: - Get Training Data
     func getTrainingData() -> (distance: Double, strokeCount: Int, style: String) {
         return (distance, strokeCount, currentSwimStyle)
+    }
+    
+    // MARK: - Current Segment Info
+    func getCurrentSegmentInfo() -> (style: String, strokesInSegment: Int) {
+        return (currentSwimStyle, currentSegmentStrokes)
     }
     
     // MARK: - Get All Style Segments

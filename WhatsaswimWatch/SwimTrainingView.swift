@@ -11,47 +11,45 @@ struct SwimTrainingView: View {
     @Environment(\.dismiss) private var dismiss
     
     @ObservedObject private var sensorManager = SensorManager.shared
+    @StateObject private var viewModel = SwimTrainingViewModel()
     
-    @State private var elapsedTime: TimeInterval = 0
-    @State private var isPaused = false
-    @State private var timer: Timer?
     @State private var showResults = false
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 6) {
                 // Время тренировки
-                Text(formatTime(elapsedTime))
+                Text(formatTime(viewModel.elapsedTime))
                     .font(.title3)
                     .fontWeight(.bold)
                     .monospacedDigit()
                     .padding(.top, 2)
                 
-                // Температура воды
+                // Текущий стиль плавания
                 HStack {
-                    Image(systemName: "thermometer")
+                    Image(systemName: "figure.pool.swim")
                         .font(.system(size: 12))
                         .foregroundStyle(.orange)
-                    Text("Вода")
+                    Text("Стиль")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text(String(format: "%.1f°C", sensorManager.waterTemperature))
+                    Text(sensorManager.currentSwimStyle)
                         .font(.caption)
                         .fontWeight(.medium)
                 }
                 .padding(.horizontal, 8)
                 
-                // Глубина погружения
+                // Гребки в текущем отрезке (до остановки)
                 HStack {
-                    Image(systemName: "arrow.down.circle")
+                    Image(systemName: "hand.wave")
                         .font(.system(size: 12))
                         .foregroundStyle(.blue)
-                    Text("Глубина")
+                    Text("Гребков в отрезке")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text(String(format: "%.1f м", sensorManager.depth))
+                    Text("\(sensorManager.getCurrentSegmentInfo().strokesInSegment)")
                         .font(.caption)
                         .fontWeight(.medium)
                 }
@@ -79,8 +77,8 @@ struct SwimTrainingView: View {
                     togglePause()
                 }) {
                     HStack {
-                        Image(systemName: isPaused ? "play.fill" : "pause.fill")
-                        Text(isPaused ? "Продолжить" : "Пауза")
+                        Image(systemName: viewModel.isPaused ? "play.fill" : "pause.fill")
+                        Text(viewModel.isPaused ? "Продолжить" : "Пауза")
                     }
                     .font(.caption)
                     .fontWeight(.semibold)
@@ -89,7 +87,7 @@ struct SwimTrainingView: View {
                     .padding(.vertical, 10)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(isPaused ? .green : .orange)
+                            .fill(viewModel.isPaused ? .green : .orange)
                     )
                 }
                 .buttonStyle(.plain)
@@ -120,9 +118,7 @@ struct SwimTrainingView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
                 // Если таймер еще не запущен, запускаем его
-                if timer == nil {
-                    startTimer()
-                }
+                viewModel.startTimer()
                 // Если мониторинг еще не запущен, запускаем его
                 // startMonitoring() проверяет, не запущен ли уже мониторинг
                 sensorManager.startMonitoring()
@@ -131,7 +127,7 @@ struct SwimTrainingView: View {
                 // НЕ вызываем reset() здесь, так как это может сбросить данные до их сохранения
                 // reset() будет вызван только после завершения тренировки в endTraining()
                 // Останавливаем только таймер, но не мониторинг
-                stopTimer()
+                viewModel.stopTimer()
                 // Не останавливаем мониторинг здесь, если тренировка еще не завершена
                 // sensorManager.stopMonitoring() вызывается в endTraining()
             }
@@ -153,23 +149,9 @@ struct SwimTrainingView: View {
         }
     }
     
-    private func startTimer() {
-        guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            if !isPaused {
-                elapsedTime += 1
-            }
-        }
-    }
-    
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
-    }
-    
     private func togglePause() {
-        isPaused.toggle()
-        if isPaused {
+        viewModel.isPaused.toggle()
+        if viewModel.isPaused {
             sensorManager.pauseMonitoring()
         } else {
             sensorManager.resumeMonitoring()
@@ -177,7 +159,7 @@ struct SwimTrainingView: View {
     }
     
     private func endTraining() {
-        stopTimer()
+        viewModel.stopTimer()
         
         // Генерируем результаты ПЕРЕД остановкой мониторинга, чтобы получить все данные
         let results = generateResults()
@@ -202,7 +184,7 @@ struct SwimTrainingView: View {
         let stylesSummary = sensorManager.getStylesSummary()
         
         // Преобразуем в формат SwimStyle
-        var styles = stylesSummary.map { summary in
+        let styles = stylesSummary.map { summary in
             SwimStyle(
                 name: summary.style,
                 totalStrokes: summary.totalStrokes,
@@ -248,7 +230,7 @@ struct SwimTrainingView: View {
         let finalDistance = totalDistance > 0 ? totalDistance : trainingData.distance
         
         return SwimResults(
-            duration: elapsedTime,
+            duration: viewModel.elapsedTime,
             distance: finalDistance,
             waterTemperature: sensorManager.waterTemperature,
             averageDepth: sensorManager.depth,

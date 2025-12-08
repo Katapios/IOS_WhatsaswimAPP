@@ -6,6 +6,24 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B5CAEBFB2EE2AF30001ADDEC /* What's a swim?Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B5CAEBF02EE2AF2D001ADDEC /* What's a swim?Watch.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B5CAEBFA2EE2AF30001ADDEC /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				B5CAEBFB2EE2AF30001ADDEC /* What's a swim?Watch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		B5A630462EE3F0D2001F167E /* What's a swim?WatchRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "What's a swim?WatchRelease.entitlements"; sourceTree = "<group>"; };
 		B5A630472EE3F0D9001F167E /* What's a swim?Release.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "What's a swim?Release.entitlements"; sourceTree = "<group>"; };
@@ -16,10 +34,6 @@
 		B5CAEBD92EE2AF1D001ADDEC /* What's a swim?.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "What's a swim?.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5CAEBF02EE2AF2D001ADDEC /* What's a swim?Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "What's a swim?Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
-
-/* Begin PBXBuildFile section */
-		B5CAEBFB2EE2AF30001ADDEC /* What's a swim?Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B5CAEBF02EE2AF2D001ADDEC /* What's a swim?Watch.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy,); }; };
-/* End PBXBuildFile section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		B5CAEBDB2EE2AF1D001ADDEC /* Whatsaswim */ = {
@@ -200,20 +214,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		B5CAEBFA2EE2AF30001ADDEC /* Embed Watch Content */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
-			files = (
-				B5CAEBFB2EE2AF30001ADDEC /* What's a swim?Watch.app in Embed Watch Content */,
-			);
-			name = "Embed Watch Content";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		B5CAEBE22EE2AF1E001ADDEC /* Debug */ = {
