@@ -17,10 +17,10 @@ struct SwimTrainingView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 6) {
+            VStack(spacing: 5) {
                 // Время тренировки
                 Text(formatTime(viewModel.elapsedTime))
-                    .font(.title3)
+                    .font(.title2)
                     .fontWeight(.bold)
                     .monospacedDigit()
                     .padding(.top, 2)
@@ -119,46 +119,39 @@ struct SwimTrainingView: View {
                 
                 Spacer(minLength: 0)
                 
-                // Кнопка Pause
-                Button(action: {
-                    togglePause()
-                }) {
-                    HStack {
+                HStack(spacing: 10) {
+                    // Кнопка Pause (слева)
+                    Button(action: {
+                        togglePause()
+                    }) {
                         Image(systemName: viewModel.isPaused ? "play.fill" : "pause.fill")
-                        Text(viewModel.isPaused ? "Продолжить" : "Пауза")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(viewModel.isPaused ? .green : .orange)
+                            )
                     }
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(viewModel.isPaused ? .green : .orange)
-                    )
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 8)
-                
-                // Кнопка End Training
-                Button(action: {
-                    endTraining()
-                }) {
-                    HStack {
+                    .buttonStyle(.plain)
+                    
+                    // Кнопка End Training (справа)
+                    Button(action: {
+                        endTraining()
+                    }) {
                         Image(systemName: "stop.fill")
-                        Text("Завершить")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(.red)
+                            )
                     }
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(.red)
-                    )
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
                 .padding(.horizontal, 8)
                 .padding(.bottom, 4)
             }
